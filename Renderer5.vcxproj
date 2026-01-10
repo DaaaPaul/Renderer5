@@ -86,7 +86,31 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\vulkan\Engine.cpp" />
+    <ClCompile Include="source\vulkan\Commands.cpp" />
+    <ClCompile Include="source\vulkan\Pipeline.cpp" />
+    <ClCompile Include="source\vulkan\Memory.cpp" />
+    <ClCompile Include="source\vulkan\Backend.cpp" />
     <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\vulkan\Swapchain.cpp" />
+    <ClCompile Include="source\vulkan\Sync.cpp" />
+    <ClCompile Include="source\geometry\Vertex.cpp" />
+    <ClCompile Include="source\geometry\Transformation.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="source\vulkan\Commands.h" />
+    <ClInclude Include="source\vulkan\Engine.h" />
+    <ClInclude Include="source\vulkan\Pipeline.h" />
+    <ClInclude Include="source\vulkan\Memory.h" />
+    <ClInclude Include="source\vulkan\Backend.h" />
+    <ClInclude Include="source\vulkan\Swapchain.h" />
+    <ClInclude Include="source\vulkan\Sync.h" />
+    <ClInclude Include="source\geometry\Vertex.h" />
+    <ClInclude Include="source\geometry\Transformation.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\shaders\compile.bat" />
+    <None Include="source\shaders\shaders.slang" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
