@@ -2,12 +2,15 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <vector>
 
 namespace Vulkan {
 	class Backend {
 	private:
 		bool validationLayersEnabled;
 		std::vector<const char*> validationLayers;
+
+		void populateValidationLayers();
 
 		GLFWwindow* window;
 		VkInstance instance;
@@ -25,7 +28,7 @@ namespace Vulkan {
 		bool verifyHaveExtensions(const char** verifyMe, uint32_t verifyCount);
 		bool verifyHaveLayers(std::vector<const char*> verifyMe);
 	public:
-		Backend(bool enableValidationLayers);
+		Backend();
 		~Backend();
 	};
 }

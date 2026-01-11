@@ -4,8 +4,28 @@
 #include <vector>
 
 namespace Vulkan {
-	Backend::Backend(bool enableValidationLayers) : validationLayersEnabled{ enableValidationLayers }, validationLayers{}, window { VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
-	
+	Backend::Backend() : validationLayersEnabled{ true }, validationLayers{}, window { VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
+		if(validationLayersEnabled) {
+			populateValidationLayers();
+		}
+		
+		createWindow();
+		createInstance();
+		createSurface();
+		selectPhysicalDevice();
+		createDevice();
+	}
+
+	Backend::~Backend() {
+		std::cout << "Cleaning...\n";
+
+		vkDestroyInstance(instance, nullptr);
+		glfwDestroyWindow(window);
+		glfwTerminate();
+	}
+
+	void Backend::populateValidationLayers() {
+		validationLayers.push_back("VK_LAYER_KHRONOS_validation");
 	}
 
 	void Backend::createWindow() {
@@ -40,12 +60,12 @@ namespace Vulkan {
 				instanceInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 				instanceInfo.ppEnabledLayerNames = validationLayers.data();
 			} else {
-				throw std::runtime_error("ERROR: Required validation layer not supported");
+				throw std::runtime_error("Required validation layer not supported");
 			}
 		}
 
 		if(vkCreateInstance(&instanceInfo, nullptr, &instance) != VK_SUCCESS) {
-			throw std::runtime_error("ERROR: Vulkan instance creation failed");
+			throw std::runtime_error("Vulkan instance creation failed");
 		} else {
 			std::cout << "Vulkan instance created\n";
 		};
@@ -56,7 +76,7 @@ namespace Vulkan {
 		const char** requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredExtensionsCount);
 
 		if (!verifyHaveExtensions(requiredExtensions, requiredExtensionsCount)) {
-			throw std::runtime_error("ERROR: Required extension by glfw not supported");
+			throw std::runtime_error("Required extension by glfw not supported");
 		}
 
 		return std::make_tuple(requiredExtensions, requiredExtensionsCount);
@@ -65,9 +85,10 @@ namespace Vulkan {
 	bool Backend::verifyHaveExtensions(const char** verifyMe, uint32_t verifyCount) {
 		bool haveExtensions = true;
 
-		std::vector<VkExtensionProperties> extensionProperties{};
 		uint32_t extensionsCount = 0;
-		vkEnumerateInstanceExtensionProperties(NULL, &extensionsCount, extensionProperties.data());
+		vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
+		std::vector<VkExtensionProperties> extensionProperties(extensionsCount);
+		vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, extensionProperties.data());
 
 		bool extensionFound = false;
 		for (int i = 0; i < verifyCount; i++) {
@@ -94,8 +115,9 @@ namespace Vulkan {
 	bool Backend::verifyHaveLayers(std::vector<const char*> verifyMe) {
 		bool haveLayers = true;
 
-		std::vector<VkLayerProperties> layerProperties{};
 		uint32_t layerCount = 0;
+		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+		std::vector<VkLayerProperties> layerProperties(layerCount);
 		vkEnumerateInstanceLayerProperties(&layerCount, layerProperties.data());
 
 		bool layerFound = false;
