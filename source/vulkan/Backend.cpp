@@ -2,9 +2,17 @@
 #include <stdexcept>
 #include <iostream>
 #include <vector>
+#include <array>
 
 namespace Vulkan {
-	Backend::Backend() : validationLayersEnabled{ true }, validationLayers{}, window { VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
+	Backend::Backend() : 
+		validationLayersEnabled { true }, 
+		validationLayers{}, 
+		apiVersion{ VK_API_VERSION_1_3 }, 
+		graphicsQueueCount{ 2 }, 
+		deviceExtensions{ "VK_KHR_swapchain", "VK_KHR_synchronization2", "VK_KHR_spirv_1_4" },
+		window{ VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
+		
 		if(validationLayersEnabled) {
 			populateValidationLayers();
 		}
@@ -19,6 +27,7 @@ namespace Vulkan {
 	Backend::~Backend() {
 		std::cout << "Cleaning...\n";
 
+		vkDestroySurfaceKHR(instance, surface, nullptr);
 		vkDestroyInstance(instance, nullptr);
 		glfwDestroyWindow(window);
 		glfwTerminate();
@@ -43,7 +52,7 @@ namespace Vulkan {
 	void Backend::createInstance() {
 		VkApplicationInfo appInfo = {
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-			.apiVersion = VK_API_VERSION_1_3
+			.apiVersion = apiVersion
 		};
 
 		std::tuple<const char**, uint32_t> glfwExtensionData = getGlfwExtensions();
@@ -64,10 +73,10 @@ namespace Vulkan {
 			}
 		}
 
-		if(vkCreateInstance(&instanceInfo, nullptr, &instance) != VK_SUCCESS) {
-			throw std::runtime_error("Vulkan instance creation failed");
-		} else {
+		if(vkCreateInstance(&instanceInfo, nullptr, &instance) == VK_SUCCESS) {
 			std::cout << "Vulkan instance created\n";
+		} else {
+			throw std::runtime_error("Vulkan instance creation failure");
 		};
 	}
 
@@ -143,11 +152,158 @@ namespace Vulkan {
 	}
 
 	void Backend::createSurface() {
-
+		if(glfwCreateWindowSurface(instance, window, nullptr, &surface) == VK_SUCCESS) {
+			std::cout << "Created surface for window\n";
+		} else {
+			throw std::runtime_error("Vulkan surface creation failure");
+		}
 	}
 
 	void Backend::selectPhysicalDevice() {
+		uint32_t physicalDeviceCount{};
+		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
+		std::vector<VkPhysicalDevice> allPhysicalDevices(physicalDeviceCount);
+		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, allPhysicalDevices.data());
 
+		std::vector<std::array<uint32_t, 4>> physicalDeviceStatuses{};
+		for(VkPhysicalDevice const& physicalDevice : allPhysicalDevices) {
+			physicalDeviceStatuses.push_back(getPhysicalDeviceStatus(physicalDevice));
+		}
+		for(std::array<uint32_t, 4> const& status : physicalDeviceStatuses) {
+			std::cout << "Physical device status: ";
+			for(uint32_t const& state : status) {
+				std::cout << state << " ";
+			}
+			std::cout << '\n';
+		}
+
+		std::vector<uint32_t> physicalDeviceGaugements{};
+		for(std::array<uint32_t, 4> const& status : physicalDeviceStatuses) {
+			physicalDeviceGaugements.push_back(getPhysicalDeviceGaugement(status));
+		}
+
+		physicalDevice = allPhysicalDevices[getIndexOfGreatest(physicalDeviceGaugements)];
+		if(physicalDevice != VK_NULL_HANDLE) {
+			std::cout << "Selected physical device: ";
+
+			VkPhysicalDeviceProperties properties{};
+			vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+			std::cout << properties.deviceName << '\n';
+		} else {
+			throw std::runtime_error("Vulkan physical device selection failure");
+		}
+	}
+
+	uint32_t Backend::getIndexOfGreatest(std::vector<uint32_t> const& physicalDeviceRatings) {
+		uint32_t indexOfGreatest = 0;
+		uint32_t greatest = 0;
+
+		for(int i = 0; i < physicalDeviceRatings.size(); i++) {
+			if(physicalDeviceRatings[i] > greatest) {
+				greatest = physicalDeviceRatings[i];
+				indexOfGreatest = i;
+			}
+		}
+
+		return indexOfGreatest;
+	}
+
+	uint32_t Backend::getPhysicalDeviceGaugement(std::array<uint32_t, 4> const& physicalDeviceStatus) {
+		uint32_t rating = 0;
+		
+		for(uint32_t const& state : physicalDeviceStatus) {
+			rating += state;
+		}
+
+		return rating;
+	}
+
+	std::array<uint32_t, 4> Backend::getPhysicalDeviceStatus(VkPhysicalDevice const& physicalDevice) {
+		std::array<uint32_t, 4> status = { 0, 0, 0, 0 };
+
+		status[0] = apiVersionStatus(physicalDevice);
+		status[1] = queueFamilyStatus(physicalDevice);
+		status[2] = extensionsStatus(physicalDevice);
+		status[3] = featuresStatus(physicalDevice);
+
+		return status;
+	}
+
+	uint32_t Backend::apiVersionStatus(VkPhysicalDevice const& physicalDevice) {
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+		if(properties.apiVersion >= apiVersion) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
+	uint32_t Backend::queueFamilyStatus(VkPhysicalDevice const& physicalDevice) {
+		uint32_t queueFamilyCount{};
+		vkGetPhysicalDeviceQueueFamilyProperties2(physicalDevice, &queueFamilyCount, nullptr);
+		std::vector<VkQueueFamilyProperties2> queueFamilyProperties(queueFamilyCount);
+		for(VkQueueFamilyProperties2& queueFamily : queueFamilyProperties) {
+			queueFamily.sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
+		}
+		vkGetPhysicalDeviceQueueFamilyProperties2(physicalDevice, &queueFamilyCount, queueFamilyProperties.data());
+
+		for(VkQueueFamilyProperties2 const& queueFamily : queueFamilyProperties) {
+			if ((queueFamily.queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFamilyProperties.queueCount >= graphicsQueueCount)) {
+				std::cout << "Found graphics queue family with " << queueFamily.queueFamilyProperties.queueCount << " queues\n";
+				
+				return 1;
+			}
+		}
+
+		return 0;
+	}
+
+	uint32_t Backend::extensionsStatus(VkPhysicalDevice const& physicalDevice) {
+		uint32_t extensionCount{};
+		vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+		std::vector<VkExtensionProperties> extensions(extensionCount);
+		vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensions.data());
+
+		bool hasAllExtensions = true;
+		bool hasThisExtension = false;
+		for(const char* const& requiredExtension : deviceExtensions) {
+			hasThisExtension = false;
+
+			for(VkExtensionProperties const& availableExtension : extensions) {
+				if(strcmp(availableExtension.extensionName, requiredExtension) == 0) {
+					hasThisExtension = true;
+					break;
+				}
+			}
+
+			if(!hasThisExtension) {
+				hasAllExtensions = false;
+				break;
+			} else {
+				std::cout << "Required device extension is present: " << requiredExtension << '\n';
+			}
+		}
+
+		return hasAllExtensions;
+	}
+
+	uint32_t Backend::featuresStatus(VkPhysicalDevice const& physicalDevice) {
+		VkPhysicalDeviceFeatures2 deviceFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+		VkPhysicalDeviceSynchronization2Features deviceSyncFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
+		VkPhysicalDeviceDynamicRenderingFeatures deviceDynamicRenderingFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
+		VkPhysicalDeviceExtendedDynamicState2FeaturesEXT deviceExtendedDynamicStateFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT };
+		deviceFeaturesStatus.pNext = &deviceSyncFeaturesStatus;
+		deviceSyncFeaturesStatus.pNext = &deviceDynamicRenderingFeaturesStatus;
+		deviceDynamicRenderingFeaturesStatus.pNext = &deviceExtendedDynamicStateFeaturesStatus;
+		
+		vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeaturesStatus);
+
+		bool requiredFeaturesSupported = deviceSyncFeaturesStatus.synchronization2 && deviceDynamicRenderingFeaturesStatus.dynamicRendering && deviceExtendedDynamicStateFeaturesStatus.extendedDynamicState2;
+	
+		return requiredFeaturesSupported;
 	}
 
 	void Backend::createDevice() {
