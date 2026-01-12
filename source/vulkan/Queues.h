@@ -28,6 +28,9 @@ namespace Vulkan {
 	public:
 		Queues(Backend&& salvageBackend);
 		Queues(Queues&& salvageQueues);
+
+		Queues(Queues const&) = delete;
+		Queues& operator=(Queues const&) = delete;
 	};
 }
 

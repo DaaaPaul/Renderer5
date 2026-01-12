@@ -34,8 +34,6 @@ namespace Vulkan {
 		uint32_t graphicsFamilyIndex;
 		std::vector<const char*> deviceExtensions;
 
-		void populateValidationLayers();
-
 		GLFWwindow* window;
 		VkInstance instance;
 		VkSurfaceKHR surface;

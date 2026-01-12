@@ -8,7 +8,7 @@ namespace Vulkan {
 	Backend::Backend() : 
 		isSalvagedRemains{ false },
 		validationLayersEnabled{ true }, 
-		validationLayers{}, 
+		validationLayers{ "VK_LAYER_KHRONOS_validation" },
 		apiVersion{ VK_API_VERSION_1_3 }, 
 		graphicsQueueCount{ 2 }, 
 		graphicsQueuePriorities{0.5f, 0.5f},
@@ -17,10 +17,6 @@ namespace Vulkan {
 		window{ VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
 		
 		std::cout << "---CREATING BACKEND...---\n";
-
-		if(validationLayersEnabled) {
-			populateValidationLayers();
-		}
 		
 		createWindow();
 		createInstance();
@@ -63,10 +59,6 @@ namespace Vulkan {
 		}
 	}
 
-	void Backend::populateValidationLayers() {
-		validationLayers.push_back("VK_LAYER_KHRONOS_validation");
-	}
-
 	void Backend::createWindow() {
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -101,6 +93,9 @@ namespace Vulkan {
 			} else {
 				throw std::runtime_error("Required validation layer not supported");
 			}
+		} else {
+			instanceInfo.enabledLayerCount = 0;
+			instanceInfo.ppEnabledLayerNames = nullptr;
 		}
 
 		if(vkCreateInstance(&instanceInfo, nullptr, &instance) == VK_SUCCESS) {
