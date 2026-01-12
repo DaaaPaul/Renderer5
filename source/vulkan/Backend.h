@@ -12,6 +12,8 @@ namespace Vulkan {
 		std::vector<const char*> validationLayers;
 		uint32_t apiVersion;
 		uint32_t graphicsQueueCount;
+		std::vector<float> graphicsQueuePriorities;
+		uint32_t graphicsFamilyIndex;
 		std::vector<const char*> deviceExtensions;
 
 		void populateValidationLayers();
@@ -40,6 +42,7 @@ namespace Vulkan {
 		uint32_t getPhysicalDeviceGaugement(std::array<uint32_t, 4> const& physicalDeviceStatus);
 		uint32_t getIndexOfGreatest(std::vector<uint32_t> const& physicalDeviceRatings);
 
+		VkDeviceQueueCreateInfo getGraphicsQueuesCreateInfo();
 	public:
 		Backend();
 		~Backend();

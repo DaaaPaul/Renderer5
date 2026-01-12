@@ -10,6 +10,8 @@ namespace Vulkan {
 		validationLayers{}, 
 		apiVersion{ VK_API_VERSION_1_3 }, 
 		graphicsQueueCount{ 2 }, 
+		graphicsQueuePriorities{0.5f, 0.5f},
+		graphicsFamilyIndex{ 0xFFFFFFFF },
 		deviceExtensions{ "VK_KHR_swapchain", "VK_KHR_synchronization2", "VK_KHR_spirv_1_4" },
 		window{ VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
 		
@@ -26,7 +28,8 @@ namespace Vulkan {
 
 	Backend::~Backend() {
 		std::cout << "Cleaning...\n";
-
+		
+		vkDestroyDevice(device, nullptr);
 		vkDestroySurfaceKHR(instance, surface, nullptr);
 		vkDestroyInstance(instance, nullptr);
 		glfwDestroyWindow(window);
@@ -250,10 +253,10 @@ namespace Vulkan {
 		}
 		vkGetPhysicalDeviceQueueFamilyProperties2(physicalDevice, &queueFamilyCount, queueFamilyProperties.data());
 
-		for(VkQueueFamilyProperties2 const& queueFamily : queueFamilyProperties) {
-			if ((queueFamily.queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFamilyProperties.queueCount >= graphicsQueueCount)) {
-				std::cout << "Found graphics queue family with " << queueFamily.queueFamilyProperties.queueCount << " queues\n";
-				
+		for(int i = 0; i < queueFamilyCount; i++) {
+			if ((queueFamilyProperties[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamilyProperties[i].queueFamilyProperties.queueCount >= graphicsQueueCount)) {
+				graphicsFamilyIndex = i;
+				std::cout << "Found graphics queue family at " << graphicsFamilyIndex << " with " << queueFamilyProperties[i].queueFamilyProperties.queueCount << " queues\n";
 				return 1;
 			}
 		}
@@ -302,11 +305,48 @@ namespace Vulkan {
 		vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeaturesStatus);
 
 		bool requiredFeaturesSupported = deviceSyncFeaturesStatus.synchronization2 && deviceDynamicRenderingFeaturesStatus.dynamicRendering && deviceExtendedDynamicStateFeaturesStatus.extendedDynamicState2;
-	
+		
 		return requiredFeaturesSupported;
 	}
 
 	void Backend::createDevice() {
+		VkDeviceQueueCreateInfo graphicsQueuesCreateInfo = getGraphicsQueuesCreateInfo();
 
+		VkPhysicalDeviceFeatures2 deviceFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+		VkPhysicalDeviceSynchronization2Features deviceSyncFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
+		VkPhysicalDeviceDynamicRenderingFeatures deviceDynamicRenderingFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
+		VkPhysicalDeviceExtendedDynamicState2FeaturesEXT deviceExtendedDynamicStateFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT };
+		deviceFeaturesStatus.pNext = &deviceSyncFeaturesStatus;
+		deviceSyncFeaturesStatus.pNext = &deviceDynamicRenderingFeaturesStatus;
+		deviceDynamicRenderingFeaturesStatus.pNext = &deviceExtendedDynamicStateFeaturesStatus;
+		deviceSyncFeaturesStatus.synchronization2 = true;
+		deviceDynamicRenderingFeaturesStatus.dynamicRendering = true;
+		deviceExtendedDynamicStateFeaturesStatus.extendedDynamicState2 = true;
+
+		VkDeviceCreateInfo deviceInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.pNext = &deviceFeaturesStatus,
+			.queueCreateInfoCount = 1,
+			.pQueueCreateInfos = &graphicsQueuesCreateInfo,
+			.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+			.ppEnabledExtensionNames = deviceExtensions.data(),
+		};
+
+		if(vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) == VK_SUCCESS) {
+			std::cout << "Created logical device for the physical device\n";
+		} else {
+			throw std::runtime_error("Logical device creation failure");
+		}
+	}
+
+	VkDeviceQueueCreateInfo Backend::getGraphicsQueuesCreateInfo() {
+		VkDeviceQueueCreateInfo graphicsQueueFamilyInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = graphicsFamilyIndex,
+			.queueCount = graphicsQueueCount,
+			.pQueuePriorities = graphicsQueuePriorities.data()
+		};
+
+		return graphicsQueueFamilyInfo;
 	}
 }

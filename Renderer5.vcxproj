@@ -86,6 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\vulkan\Queues.cpp" />
     <ClCompile Include="source\vulkan\Engine.cpp" />
     <ClCompile Include="source\vulkan\Commands.cpp" />
     <ClCompile Include="source\vulkan\Pipeline.cpp" />
@@ -98,6 +99,7 @@
     <ClCompile Include="source\geometry\Transformation.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\vulkan\Queues.h" />
     <ClInclude Include="source\vulkan\Commands.h" />
     <ClInclude Include="source\vulkan\Engine.h" />
     <ClInclude Include="source\vulkan\Pipeline.h" />
