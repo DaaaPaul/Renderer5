@@ -6,7 +6,8 @@
 
 namespace Vulkan {
 	Backend::Backend() : 
-		validationLayersEnabled { true }, 
+		isSalvagedRemains{ false },
+		validationLayersEnabled{ true }, 
 		validationLayers{}, 
 		apiVersion{ VK_API_VERSION_1_3 }, 
 		graphicsQueueCount{ 2 }, 
@@ -15,6 +16,8 @@ namespace Vulkan {
 		deviceExtensions{ "VK_KHR_swapchain", "VK_KHR_synchronization2", "VK_KHR_spirv_1_4" },
 		window{ VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
 		
+		std::cout << "---CREATING BACKEND...---\n";
+
 		if(validationLayersEnabled) {
 			populateValidationLayers();
 		}
@@ -26,14 +29,38 @@ namespace Vulkan {
 		createDevice();
 	}
 
+	Backend::Backend(Backend&& salvageBackend) :
+		isSalvagedRemains{ false },
+		validationLayersEnabled{ std::move(salvageBackend.validationLayersEnabled) },
+		validationLayers{ std::move(salvageBackend.validationLayers) },
+		apiVersion{ std::move(salvageBackend.apiVersion) },
+		graphicsQueueCount{ std::move(salvageBackend.graphicsQueueCount) },
+		graphicsQueuePriorities{ std::move(salvageBackend.graphicsQueuePriorities) },
+		graphicsFamilyIndex{ std::move(salvageBackend.graphicsFamilyIndex) },
+		deviceExtensions{ std::move(salvageBackend.deviceExtensions) },
+		window{ salvageBackend.window }, instance{ salvageBackend.instance }, surface{ salvageBackend.surface }, physicalDevice{ salvageBackend.physicalDevice }, device{ salvageBackend.device } {
+
+		salvageBackend.isSalvagedRemains = true;
+
+		salvageBackend.window = nullptr;
+		salvageBackend.instance = VK_NULL_HANDLE;
+		salvageBackend.surface = VK_NULL_HANDLE;
+		salvageBackend.physicalDevice = VK_NULL_HANDLE;
+		salvageBackend.device = VK_NULL_HANDLE;
+
+		std::cout << "---MOVED BACKEND---\n";
+	}
+
 	Backend::~Backend() {
-		std::cout << "Cleaning...\n";
-		
-		vkDestroyDevice(device, nullptr);
-		vkDestroySurfaceKHR(instance, surface, nullptr);
-		vkDestroyInstance(instance, nullptr);
-		glfwDestroyWindow(window);
-		glfwTerminate();
+		if(!isSalvagedRemains) {
+			std::cout << "---CLEANING BACKEND (along with its queues)...---\n";
+
+			vkDestroyDevice(device, nullptr);
+			vkDestroySurfaceKHR(instance, surface, nullptr);
+			vkDestroyInstance(instance, nullptr);
+			glfwDestroyWindow(window);
+			glfwTerminate();
+		}
 	}
 
 	void Backend::populateValidationLayers() {

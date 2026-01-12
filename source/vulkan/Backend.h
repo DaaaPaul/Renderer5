@@ -6,8 +6,26 @@
 #include <array>
 
 namespace Vulkan {
+	class Queues;
+	class Swapchain;
+	class Memory;
+	class Pipeline;
+	class Sync;
+	class Commands;
+	class Engine;
+
 	class Backend {
+		friend class Queues;
+		friend class Swapchain;
+		friend class Memory;
+		friend class Pipeline;
+		friend class Sync;
+		friend class Commands;
+		friend class Engine;
+
 	private:
+		bool isSalvagedRemains;
+
 		bool validationLayersEnabled;
 		std::vector<const char*> validationLayers;
 		uint32_t apiVersion;
@@ -45,7 +63,11 @@ namespace Vulkan {
 		VkDeviceQueueCreateInfo getGraphicsQueuesCreateInfo();
 	public:
 		Backend();
+		Backend(Backend&& salvageBackend);
 		~Backend();
+
+		Backend(Backend const&) = delete;
+		Backend& operator=(Backend const&) = delete;
 	};
 }
 
