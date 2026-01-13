@@ -20,25 +20,32 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
-		std::vector<Geometry::Vertex> triangleVerticies;
+		std::vector<Geometry::Vertex> vertices;
+		std::vector<uint32_t> indices;
 		uint32_t graphicsQueueFamilyIndex;
+		VkMemoryRequirements verticesBufferRequirements;
+		VkMemoryRequirements indicesBufferRequirements;
 
 		Swapchain swapchain;
-		VkBuffer stagingBuffer;
-		VkDeviceMemory stagingBufferM;
-		VkBuffer verticiesBuffer;
-		VkDeviceMemory verticiesBufferM;
+		VkDeviceMemory stagingM;
+		VkDeviceMemory gpuM;
+		VkBuffer stagedvertices;
+		VkBuffer stagedIndices;
+		VkBuffer verticesBuffer;
 		VkBuffer indicesBuffer;
-		VkDeviceMemory indicesBufferM;
+
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorPool descriptorPool;
 		VkDescriptorSet descriptorSet;
 		std::vector<VkBuffer> uniformBuffers;
-		std::vector<VkDeviceMemory> uniformBuffersM;
 		std::vector<void*> uniformBuffersA;
 
-		void createVerticiesBuffer();
+		void createVerticesBuffer();
 		void createIndicesBuffer();
+		void allocateStagingMemory();
+		void allocateGPUMemory();
+		void initializeStagedVertices();
+		void initializeStagedIndices();
 
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 

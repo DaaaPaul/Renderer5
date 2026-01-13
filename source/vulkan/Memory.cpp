@@ -17,22 +17,34 @@ namespace Vulkan {
 		}
 	}
 
-	void Memory::createVerticiesBuffer() {
-		uint32_t verticiesBufferSize = triangleVerticies.size() * sizeof(triangleVerticies[0]);
-		createBuffer(stagingBuffer, verticiesBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-		
-		VkMemoryRequirements stagingBufferMRequirements{};
-		vkGetBufferMemoryRequirements(swapchain.queues.backend.device, stagingBuffer, &stagingBufferMRequirements);	
-		allocateMemory(stagingBufferM, stagingBufferMRequirements.size, getMemoryTypeIndex(stagingBufferMRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
-		vkBindBufferMemory(swapchain.queues.backend.device, stagingBuffer, stagingBufferM, 0);
+	void Memory::createVerticesBuffer() {
+		createBuffer(verticesBuffer, sizeof(vertices[0]) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		vkGetBufferMemoryRequirements(swapchain.queues.backend.device, verticesBuffer, &verticesBufferRequirements);
 
-		void* stagingBufferMAddress = nullptr;
-		vkMapMemory(swapchain.queues.backend.device, stagingBufferM, 0, verticiesBufferSize, 0, &stagingBufferMAddress);
-		memcpy(stagingBufferMAddress, triangleVerticies.data(), verticiesBufferSize);
+		std::cout << "Created vertices buffer with size " << sizeof(vertices[0]) * vertices.size() << " requiring size of " << verticesBufferRequirements.size << '\n';
 	}
 
 	void Memory::createIndicesBuffer() {
-	
+		createBuffer(indicesBuffer, sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		vkGetBufferMemoryRequirements(swapchain.queues.backend.device, indicesBuffer, &indicesBufferRequirements);
+
+		std::cout << "Created indices buffer with size " << sizeof(indices[0]) * indices.size() << " requiring size of " << indicesBufferRequirements.size << '\n';
+	}
+
+	void Memory::allocateStagingMemory() {
+
+	}
+
+	void Memory::allocateGPUMemory() {
+
+	}
+
+	void Memory::initializeStagedVertices() {
+
+	}
+
+	void Memory::initializeStagedIndices() {
+
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
