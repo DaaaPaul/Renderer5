@@ -25,31 +25,36 @@ namespace Vulkan {
 		uint32_t graphicsQueueFamilyIndex;
 		VkMemoryRequirements verticesBufferRequirements;
 		VkMemoryRequirements indicesBufferRequirements;
+		VkMemoryRequirements stagedVerticesRequirements;
+		VkMemoryRequirements stagedIndicesRequirements;
 
 		Swapchain swapchain;
-		VkDeviceMemory stagingM;
-		VkDeviceMemory gpuM;
-		VkBuffer stagedvertices;
-		VkBuffer stagedIndices;
+		VkDeviceMemory stagingMemory;
+		VkDeviceMemory gpuMemory;
 		VkBuffer verticesBuffer;
 		VkBuffer indicesBuffer;
+		VkBuffer stagedVertices;
+		VkBuffer stagedIndices;
 
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorPool descriptorPool;
 		VkDescriptorSet descriptorSet;
 		std::vector<VkBuffer> uniformBuffers;
-		std::vector<void*> uniformBuffersA;
+		std::vector<void*> uniformBuffersAddresses;
 
 		void createVerticesBuffer();
 		void createIndicesBuffer();
-		void allocateStagingMemory();
+		void createStagedVertices();
+		void createStagedIndices();
 		void allocateGPUMemory();
-		void initializeStagedVertices();
-		void initializeStagedIndices();
+		void allocateStagingMemory();
+		void populateVerticesBuffer();
+		void populateIndicesBuffer();
 
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
+		VkDeviceSize calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
 		void copyBuffer();
 	public:
