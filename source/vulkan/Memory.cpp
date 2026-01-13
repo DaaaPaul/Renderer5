@@ -17,7 +17,17 @@ namespace Vulkan {
 	},
 	graphicsQueueFamilyIndex{ swapchain.graphicsQueueFamilyIndex },
 	verticesBufferRequirements{},
+	verticesBufferOffset{},
+	verticesBufferSize{ static_cast<uint32_t>(sizeof(vertices[0]) * vertices.size()) },
 	indicesBufferRequirements{},
+	indicesBufferOffset{},
+	indicesBufferSize{ static_cast<uint32_t>(sizeof(indices[0]) * indices.size()) },
+	stagedVerticesRequirements{},
+	stagedVerticesOffset{},
+	stagedVerticesSize{ verticesBufferSize },
+	stagedIndicesRequirements{},
+	stagedIndicesOffset{},
+	stagedIndicesSize{ indicesBufferSize },
 
 	swapchain{ std::move(salvageSwapchain) },
 	stagingMemory{ VK_NULL_HANDLE },
@@ -50,7 +60,17 @@ namespace Vulkan {
 		indices{ std::move(salvageMemory.indices) },
 		graphicsQueueFamilyIndex{ salvageMemory.graphicsQueueFamilyIndex },
 		verticesBufferRequirements{ salvageMemory.verticesBufferRequirements },
+		verticesBufferOffset{ salvageMemory.verticesBufferOffset },
+		verticesBufferSize{ salvageMemory.verticesBufferSize },
 		indicesBufferRequirements{ salvageMemory.indicesBufferRequirements },
+		indicesBufferOffset{ salvageMemory.indicesBufferOffset },
+		indicesBufferSize{ salvageMemory.indicesBufferSize },
+		stagedVerticesRequirements{ salvageMemory.stagedVerticesRequirements },
+		stagedVerticesOffset{ salvageMemory.stagedVerticesOffset },
+		stagedVerticesSize{ salvageMemory.stagedVerticesSize },
+		stagedIndicesRequirements{ salvageMemory.stagedIndicesRequirements },
+		stagedIndicesOffset{ salvageMemory.stagedIndicesOffset },
+		stagedIndicesSize{ salvageMemory.stagedIndicesSize },
 
 		swapchain{ std::move(salvageMemory.swapchain) },
 		stagingMemory{ salvageMemory.stagingMemory },
@@ -69,7 +89,17 @@ namespace Vulkan {
 
 		salvageMemory.graphicsQueueFamilyIndex = 0xFFFFFFFF;
 		salvageMemory.verticesBufferRequirements = VkMemoryRequirements{};
+		salvageMemory.verticesBufferOffset = 0xFFFFFFFF;
+		salvageMemory.verticesBufferSize = 0xFFFFFFFF;
 		salvageMemory.indicesBufferRequirements = VkMemoryRequirements{};
+		salvageMemory.indicesBufferOffset = 0xFFFFFFFF;
+		salvageMemory.indicesBufferSize = 0xFFFFFFFF;
+		salvageMemory.stagedVerticesRequirements = VkMemoryRequirements{};
+		salvageMemory.stagedVerticesOffset = 0xFFFFFFFF;
+		salvageMemory.stagedVerticesSize = 0xFFFFFFFF;
+		salvageMemory.stagedIndicesRequirements = VkMemoryRequirements{};
+		salvageMemory.stagedIndicesOffset = 0xFFFFFFFF;
+		salvageMemory.stagedIndicesSize = 0xFFFFFFFF;
 
 		salvageMemory.stagingMemory = VK_NULL_HANDLE;
 		salvageMemory.gpuMemory = VK_NULL_HANDLE;
@@ -90,6 +120,14 @@ namespace Vulkan {
 	Memory::~Memory() {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING MEMORY...---\n";
+
+			vkDestroyBuffer(swapchain.queues.backend.device, verticesBuffer, nullptr);
+			vkDestroyBuffer(swapchain.queues.backend.device, indicesBuffer, nullptr);
+			vkDestroyBuffer(swapchain.queues.backend.device, stagedVertices, nullptr);
+			vkDestroyBuffer(swapchain.queues.backend.device, stagedIndices, nullptr);
+
+			vkFreeMemory(swapchain.queues.backend.device, gpuMemory, nullptr);
+			vkFreeMemory(swapchain.queues.backend.device, stagingMemory, nullptr);
 		}
 	}
 
@@ -130,7 +168,7 @@ namespace Vulkan {
 	}
 
 	void Memory::allocateGPUMemory() {
-		VkDeviceSize allocationSize = calculateAllocationSize(verticesBufferRequirements.size, verticesBufferRequirements.alignment, indicesBufferRequirements.size, indicesBufferRequirements.alignment);
+		VkDeviceSize allocationSize = calculateAllocationSize(verticesBufferRequirements.size, verticesBufferRequirements.alignment, indicesBufferRequirements.size, indicesBufferRequirements.alignment, verticesBufferOffset, indicesBufferOffset);
 		uint32_t memoryTypeIndex = getMemoryTypeIndex(verticesBufferRequirements.memoryTypeBits & indicesBufferRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		allocateMemory(gpuMemory, allocationSize, memoryTypeIndex);
 
@@ -138,19 +176,39 @@ namespace Vulkan {
 	}
 
 	void Memory::allocateStagingMemory() {
-		VkDeviceSize allocationSize = calculateAllocationSize(stagedVerticesRequirements.size, stagedVerticesRequirements.alignment, stagedIndicesRequirements.size, stagedIndicesRequirements.alignment);
+		VkDeviceSize allocationSize = calculateAllocationSize(stagedVerticesRequirements.size, stagedVerticesRequirements.alignment, stagedIndicesRequirements.size, stagedIndicesRequirements.alignment, stagedVerticesOffset, stagedIndicesOffset);
 		uint32_t memoryTypeIndex = getMemoryTypeIndex(stagedVerticesRequirements.memoryTypeBits & stagedIndicesRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		allocateMemory(gpuMemory, allocationSize, memoryTypeIndex);
+		allocateMemory(stagingMemory, allocationSize, memoryTypeIndex);
 
 		std::cout << "Allocated staging memory with size " << allocationSize << " and memory type " << memoryTypeIndex << '\n';
 	}
 
 	void Memory::populateVerticesBuffer() {
+		vkBindBufferMemory(swapchain.queues.backend.device, stagedVertices, stagingMemory, stagedVerticesOffset);
+		vkBindBufferMemory(swapchain.queues.backend.device, verticesBuffer, gpuMemory, verticesBufferOffset);
 
+		void* stagedVerticesAddress = nullptr;
+		if(vkMapMemory(swapchain.queues.backend.device, stagingMemory, stagedVerticesOffset, stagedVerticesSize, 0, &stagedVerticesAddress) != VK_SUCCESS) {
+			throw std::runtime_error("Mapping memory failure");
+		}
+		memcpy(stagedVerticesAddress, vertices.data(), stagedVerticesSize);
+		vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
+		
+		copyBuffer(stagedVertices, verticesBuffer, stagedVerticesSize);
 	}
 
 	void Memory::populateIndicesBuffer() {
+		vkBindBufferMemory(swapchain.queues.backend.device, stagedIndices, stagingMemory, stagedIndicesOffset);
+		vkBindBufferMemory(swapchain.queues.backend.device, indicesBuffer, gpuMemory, indicesBufferOffset);
 
+		void* stagedIndicesAddress = nullptr;
+		if (vkMapMemory(swapchain.queues.backend.device, stagingMemory, stagedIndicesOffset, stagedIndicesSize, 0, &stagedIndicesAddress) != VK_SUCCESS) {
+			throw std::runtime_error("Mapping memory failure");
+		}
+		memcpy(stagedIndicesAddress, indices.data(), stagedIndicesSize);
+		vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
+
+		copyBuffer(stagedIndices, indicesBuffer, stagedIndicesSize);
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
@@ -184,15 +242,17 @@ namespace Vulkan {
 		}
 	}
 
-	VkDeviceSize Memory::calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2) {
+	VkDeviceSize Memory::calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2, VkDeviceSize& offset1, VkDeviceSize& offset2) {
 		VkDeviceSize allocationSize = 0;
+		offset1 = 0;
 
 		allocationSize += size1;
 
-		while ((allocationSize + 1) % alignment2 != 0) {
+		while (allocationSize % alignment2 != 0) {
 			allocationSize++;
 		}
-		
+		offset2 = allocationSize;
+
 		allocationSize += size2;
 
 		return allocationSize;
@@ -218,7 +278,7 @@ namespace Vulkan {
 	}
 
 
-	void Memory::copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize copySizeFromStart) {
+	void Memory::copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning) {
 		VkCommandPool tempPool = VK_NULL_HANDLE;
 		VkCommandPoolCreateInfo poolInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -250,7 +310,7 @@ namespace Vulkan {
 		VkBufferCopy fullSize = {
 			.srcOffset = 0,
 			.dstOffset = 0,
-			.size = copySizeFromStart
+			.size = sizeFromBeginning
 		};
 		vkCmdCopyBuffer(tempCmdBuf, src, dst, 1, &fullSize);
 		vkEndCommandBuffer(tempCmdBuf);
@@ -268,5 +328,7 @@ namespace Vulkan {
 		};
 		vkQueueSubmit(swapchain.queues.graphicsQueues[0], 1, &submitInfo, VK_NULL_HANDLE);
 		vkQueueWaitIdle(swapchain.queues.graphicsQueues[0]);
+
+		vkDestroyCommandPool(swapchain.queues.backend.device, tempPool, nullptr);
 	}
 }

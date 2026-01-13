@@ -24,9 +24,17 @@ namespace Vulkan {
 		std::vector<uint32_t> indices;
 		uint32_t graphicsQueueFamilyIndex;
 		VkMemoryRequirements verticesBufferRequirements;
+		VkDeviceSize verticesBufferOffset;
+		uint32_t verticesBufferSize;
 		VkMemoryRequirements indicesBufferRequirements;
+		VkDeviceSize indicesBufferOffset;
+		uint32_t indicesBufferSize;
 		VkMemoryRequirements stagedVerticesRequirements;
+		VkDeviceSize stagedVerticesOffset;
+		uint32_t stagedVerticesSize;
 		VkMemoryRequirements stagedIndicesRequirements;
+		VkDeviceSize stagedIndicesOffset;
+		uint32_t stagedIndicesSize;
 
 		Swapchain swapchain;
 		VkDeviceMemory stagingMemory;
@@ -54,9 +62,9 @@ namespace Vulkan {
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
-		VkDeviceSize calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2);
+		VkDeviceSize calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2, VkDeviceSize& offset1, VkDeviceSize& offset2);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
-		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize copySizeFromStart);
+		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning);
 	public:
 		Memory(Swapchain&& salvageSwapchain);
 		Memory(Memory&& salvageMemory);
