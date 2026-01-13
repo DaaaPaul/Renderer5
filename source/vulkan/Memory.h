@@ -56,7 +56,7 @@ namespace Vulkan {
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
 		VkDeviceSize calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
-		void copyBuffer();
+		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize copySizeFromStart);
 	public:
 		Memory(Swapchain&& salvageSwapchain);
 		Memory(Memory&& salvageMemory);

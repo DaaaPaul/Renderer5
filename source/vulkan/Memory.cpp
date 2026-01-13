@@ -218,7 +218,55 @@ namespace Vulkan {
 	}
 
 
-	void Memory::copyBuffer() {
+	void Memory::copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize copySizeFromStart) {
+		VkCommandPool tempPool = VK_NULL_HANDLE;
+		VkCommandPoolCreateInfo poolInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+			.queueFamilyIndex = graphicsQueueFamilyIndex
+		};
+		if (vkCreateCommandPool(swapchain.queues.backend.device, &poolInfo, nullptr, &tempPool) != VK_SUCCESS) {
+			throw std::runtime_error("Temporary command pool allocation failure");
+		}
 
+		VkCommandBuffer tempCmdBuf = VK_NULL_HANDLE;
+		VkCommandBufferAllocateInfo cmdBufInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.commandPool = tempPool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1
+		};
+		vkAllocateCommandBuffers(swapchain.queues.backend.device, &cmdBufInfo, &tempCmdBuf);
+
+		VkCommandBufferBeginInfo beginInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+			.pInheritanceInfo = nullptr
+		};
+		vkBeginCommandBuffer(tempCmdBuf, &beginInfo);
+		VkBufferCopy fullSize = {
+			.srcOffset = 0,
+			.dstOffset = 0,
+			.size = copySizeFromStart
+		};
+		vkCmdCopyBuffer(tempCmdBuf, src, dst, 1, &fullSize);
+		vkEndCommandBuffer(tempCmdBuf);
+
+		VkSubmitInfo submitInfo = {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 0,
+			.pWaitSemaphores = nullptr,
+			.pWaitDstStageMask = nullptr,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &tempCmdBuf,
+			.signalSemaphoreCount = 0,
+			.pSignalSemaphores = nullptr
+		};
+		vkQueueSubmit(swapchain.queues.graphicsQueues[0], 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(swapchain.queues.graphicsQueues[0]);
 	}
 }
