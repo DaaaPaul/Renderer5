@@ -1,7 +1,11 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 namespace Geometry {
-	class Vertex {
+	struct Vertex {
+		glm::vec4 position;
+		glm::vec4 color;
 	};
 }
 

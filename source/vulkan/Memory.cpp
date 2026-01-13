@@ -17,12 +17,36 @@ namespace Vulkan {
 		}
 	}
 
-	void createVerticiesBuffer() {
+	void Memory::createVerticiesBuffer() {
+		uint32_t verticiesBufferSize = triangleVerticies.size() * sizeof(triangleVerticies[0]);
+		createBuffer(stagingBuffer, verticiesBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+		
+		VkMemoryRequirements stagingBufferMRequirements{};
+		vkGetBufferMemoryRequirements(swapchain.queues.backend.device, stagingBuffer, &stagingBufferMRequirements);	
+		allocateMemory(stagingBufferM, stagingBufferMRequirements.size, getMemoryTypeIndex(stagingBufferMRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+		vkBindBufferMemory(swapchain.queues.backend.device, stagingBuffer, stagingBufferM, 0);
+
+		void* stagingBufferMAddress = nullptr;
+		vkMapMemory(swapchain.queues.backend.device, stagingBufferM, 0, verticiesBufferSize, 0, &stagingBufferMAddress);
+		memcpy(stagingBufferMAddress, triangleVerticies.data(), verticiesBufferSize);
+	}
+
+	void Memory::createIndicesBuffer() {
 	
 	}
 
-	void createIndicesBuffer() {
-	
+	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
+		VkPhysicalDeviceMemoryProperties2 memoryProperties{};
+		vkGetPhysicalDeviceMemoryProperties2(swapchain.queues.backend.physicalDevice, &memoryProperties);
+
+		for (int i = 0; i < memoryProperties.memoryProperties.memoryTypeCount; i++) {
+			if ((memoryRequirementsMask & (1 << i)) && 
+				((memoryProperties.memoryProperties.memoryTypes[i].propertyFlags & propertyMask) == propertyMask)) {
+				return i;
+			}
+		};
+
+		throw std::runtime_error("No suitable memory type found\n");
 	}
 
 	void Memory::allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex) {

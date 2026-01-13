@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Swapchain.h"
+#include "../geometry/Vertex.h"
 #include <vulkan/vulkan.h>
 #include <vector>
 
@@ -19,6 +20,7 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
+		std::vector<Geometry::Vertex> triangleVerticies;
 		uint32_t graphicsQueueFamilyIndex;
 
 		Swapchain swapchain;
@@ -37,6 +39,8 @@ namespace Vulkan {
 
 		void createVerticiesBuffer();
 		void createIndicesBuffer();
+
+		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
