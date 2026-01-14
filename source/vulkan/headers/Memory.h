@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Swapchain.h"
-#include "../geometry/Vertex.h"
+#include "../../geometry/headers/Vertex.h"
 #include <vulkan/vulkan.h>
 #include <vector>
 

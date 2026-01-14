@@ -18,66 +18,66 @@
     <ClCompile Include="source\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Backend.cpp">
+    <ClCompile Include="source\vulkan\source\Backend.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Swapchain.cpp">
+    <ClCompile Include="source\vulkan\source\Swapchain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Memory.cpp">
+    <ClCompile Include="source\vulkan\source\Memory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Pipeline.cpp">
+    <ClCompile Include="source\vulkan\source\Pipeline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Sync.cpp">
+    <ClCompile Include="source\vulkan\source\Sync.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Commands.cpp">
+    <ClCompile Include="source\vulkan\source\Commands.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Engine.cpp">
+    <ClCompile Include="source\vulkan\source\Engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\geometry\Vertex.cpp">
+    <ClCompile Include="source\geometry\source\Vertex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\geometry\Transformation.cpp">
+    <ClCompile Include="source\geometry\source\Transformation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\Queues.cpp">
+    <ClCompile Include="source\vulkan\source\Queues.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\vulkan\Backend.h">
+    <ClInclude Include="source\vulkan\headers\Backend.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Swapchain.h">
+    <ClInclude Include="source\vulkan\headers\Swapchain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Memory.h">
+    <ClInclude Include="source\vulkan\headers\Memory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Pipeline.h">
+    <ClInclude Include="source\vulkan\headers\Pipeline.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Sync.h">
+    <ClInclude Include="source\vulkan\headers\Sync.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Commands.h">
+    <ClInclude Include="source\vulkan\headers\Commands.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Engine.h">
+    <ClInclude Include="source\vulkan\headers\Engine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\geometry\Vertex.h">
+    <ClInclude Include="source\geometry\headers\Vertex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\geometry\Transformation.h">
+    <ClInclude Include="source\geometry\headers\Transformation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\vulkan\Queues.h">
+    <ClInclude Include="source\vulkan\headers\Queues.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
