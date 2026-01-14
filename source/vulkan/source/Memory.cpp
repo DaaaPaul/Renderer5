@@ -114,7 +114,7 @@ namespace Vulkan {
 		salvageMemory.uniformBuffers.clear();
 		salvageMemory.uniformBuffersAddresses.clear();
 		
-		std::cout << "---MOVED MEMORY---";
+		std::cout << "---MOVED MEMORY---\n";
 	}
 
 	Memory::~Memory() {

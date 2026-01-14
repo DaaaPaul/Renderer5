@@ -1,14 +1,23 @@
-struct Vertex {
-    [[vk::location(0)]] float4 pos : SV_Position;
+struct VertexIn {
+    [[vk::location(0)]] float4 pos;
     [[vk::location(1)]] float4 col;
 };
 
+struct VertexOut {
+    float4 pos : SV_Position;
+    float4 col;
+};
+
 [shader("vertex")]
-Vertex vertexShader(Vertex given) {
-    return given;
+VertexOut vertexShader(VertexIn given) {
+    VertexOut final;
+    final.pos = given.pos;
+    final.col = given.col;
+
+    return final;
 }
 
 [shader("fragment")]
-float4 fragmentShader(Vertex processed) {
+float4 fragmentShader(VertexOut processed) {
     return processed.col;
 }

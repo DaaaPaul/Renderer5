@@ -251,12 +251,12 @@ namespace Vulkan {
 			.flags = 0,
 			.depthClampEnable = VK_FALSE,
 			.rasterizerDiscardEnable = VK_FALSE,
-			.polygonMode = VK_POLYGON_MODE_LINE,
+			.polygonMode = VK_POLYGON_MODE_FILL,
 			.cullMode = VK_CULL_MODE_BACK_BIT,
 			.depthBiasConstantFactor = 1.0f,
 			.depthBiasClamp = 0.0f,
 			.depthBiasSlopeFactor = 1.0f,
-			.lineWidth = 10.0f
+			.lineWidth = 1.0f
 		};
 
 		this->rasterizationInfo = rasterizationInfo;
