@@ -113,6 +113,7 @@
   <ItemGroup>
     <None Include="source\shaders\compile.bat" />
     <None Include="source\shaders\shaders.slang" />
+    <None Include="source\shaders\shaders.spv" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="TODO.txt" />

@@ -18,15 +18,21 @@ namespace Vulkan {
 		bool isSalvagedRemains;
 
 		VkPipelineRenderingCreateInfo renderingInfo;
-		VkPipelineVertexInputStateCreateInfo vertexInputInfo;
+		VkFormat colorAttachmentFormat;
+		std::vector<VkPipelineShaderStageCreateInfo> manualShadersInfo;
+		std::vector<char> shadersData;
+		VkShaderModule shaderModule;
+		VkPipelineVertexInputStateCreateInfo vertexInputStateInfo;
+		VkVertexInputBindingDescription vertexBinding;
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
-		VkPipelineTessellationStateCreateInfo tessellationInfo;
 		VkPipelineViewportStateCreateInfo viewportInfo;
 		VkPipelineRasterizationStateCreateInfo rasterizationInfo;
 		VkPipelineMultisampleStateCreateInfo multisampleInfo;
 		VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
 		VkPipelineColorBlendStateCreateInfo colorBlendInfo;
 		VkPipelineDynamicStateCreateInfo dynamicStateInfo;
+		std::vector<VkDynamicState> dynamicStates;
 		VkPipelineLayout layout;
 
 		Memory memory;
@@ -34,19 +40,19 @@ namespace Vulkan {
 
 		void createGraphicsPipeline();
 
-		VkPipelineRenderingCreateInfo initPipelineRenderingCreateInfo();
-		std::vector<VkPipelineShaderStageCreateInfo> initPipelineShaderStageCreateInfo();
-		VkPipelineVertexInputStateCreateInfo initPipelineVertexInputStateCreateInfo();
-		VkPipelineInputAssemblyStateCreateInfo initPipelineInputAssemblyStateCreateInfo();
-		VkPipelineTessellationStateCreateInfo initPipelineTessellationStateCreateInfo();
-		VkPipelineViewportStateCreateInfo initPipelineViewportStateCreateInfo();
-		VkPipelineRasterizationStateCreateInfo initPipelineRasterizationStateCreateInfo();
-		VkPipelineMultisampleStateCreateInfo initPipelineMultisampleStateCreateInfo();
-		VkPipelineDepthStencilStateCreateInfo initPipelineDepthStencilStateCreateInfo();
-		VkPipelineColorBlendStateCreateInfo initPipelineColorBlendStateCreateInfo();
-		VkPipelineDynamicStateCreateInfo initPipelineDynamicStateCreateInfo();
-		VkPipelineLayout initPipelineLayout();
+		void initPipelineRenderingCreateInfo();
+		void initPipelineShaderStageCreateInfo();
+		void initPipelineVertexInputStateCreateInfo();
+		void initPipelineInputAssemblyStateCreateInfo();
+		void initPipelineViewportStateCreateInfo();
+		void initPipelineRasterizationStateCreateInfo();
+		void initPipelineMultisampleStateCreateInfo();
+		void initPipelineDepthStencilStateCreateInfo();
+		void initPipelineColorBlendStateCreateInfo();
+		void initPipelineDynamicStateCreateInfo();
+		void initPipelineLayout();
 
+		std::vector<char> loadSpvBytes(const char* path);
 	public:
 		Pipeline(Memory&& salvageMemory);
 		Pipeline(Pipeline&& salvagePipeline);
