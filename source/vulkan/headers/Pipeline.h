@@ -31,6 +31,7 @@ namespace Vulkan {
 		VkPipelineMultisampleStateCreateInfo multisampleInfo;
 		VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
 		VkPipelineColorBlendStateCreateInfo colorBlendInfo;
+		VkPipelineColorBlendAttachmentState colorAttachmentState;
 		VkPipelineDynamicStateCreateInfo dynamicStateInfo;
 		std::vector<VkDynamicState> dynamicStates;
 		VkPipelineLayout layout;

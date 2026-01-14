@@ -1,9 +1,36 @@
 #include "../headers/Pipeline.h"
 #include "../../geometry/headers/Vertex.h"
 #include <fstream>
+#include <iostream>
 
 namespace Vulkan {
-	Pipeline::Pipeline(Memory&& salvageMemory) {
+	Pipeline::Pipeline(Memory&& salvageMemory) :
+		isSalvagedRemains{ false },
+
+		renderingInfo{},
+		colorAttachmentFormat{},
+		manualShadersInfo{},
+		shadersData{},
+		shaderModule{ VK_NULL_HANDLE },
+		vertexInputStateInfo{},
+		vertexBinding{},
+		attributeDescriptions{},
+		inputAssemblyInfo{},
+		viewportInfo{},
+		rasterizationInfo{},
+		multisampleInfo{},
+		depthStencilInfo{},
+		colorBlendInfo{},
+		colorAttachmentState{},
+		dynamicStateInfo{},
+		dynamicStates{},
+		layout{ VK_NULL_HANDLE },
+
+		memory(std::move(salvageMemory)),
+		graphicsPipeline{ VK_NULL_HANDLE } {
+
+		std::cout << "---CREATING GRAPHICS PIPELINE...---\n";
+
 		initPipelineRenderingCreateInfo();
 		initPipelineShaderStageCreateInfo();
 		initPipelineVertexInputStateCreateInfo();
@@ -19,18 +46,94 @@ namespace Vulkan {
 		createGraphicsPipeline();
 	}
 
-	Pipeline::Pipeline(Pipeline&& salvagePipeline) {
+	Pipeline::Pipeline(Pipeline&& salvagePipeline) :
+		isSalvagedRemains{ false },
+
+		renderingInfo{ salvagePipeline.renderingInfo },
+		colorAttachmentFormat{ salvagePipeline.colorAttachmentFormat },
+		manualShadersInfo{ salvagePipeline.manualShadersInfo },
+		shadersData{ salvagePipeline.shadersData },
+		shaderModule{ salvagePipeline.shaderModule },
+		vertexInputStateInfo{ salvagePipeline.vertexInputStateInfo },
+		vertexBinding{ salvagePipeline.vertexBinding },
+		attributeDescriptions{ salvagePipeline.attributeDescriptions },
+		inputAssemblyInfo{ salvagePipeline.inputAssemblyInfo },
+		viewportInfo{ salvagePipeline.viewportInfo },
+		rasterizationInfo{ salvagePipeline.rasterizationInfo },
+		multisampleInfo{ salvagePipeline.multisampleInfo },
+		depthStencilInfo{ salvagePipeline.depthStencilInfo },
+		colorBlendInfo{ salvagePipeline.colorBlendInfo },
+		colorAttachmentState{ salvagePipeline.colorAttachmentState },
+		dynamicStateInfo{ salvagePipeline.dynamicStateInfo },
+		dynamicStates{ salvagePipeline.dynamicStates },
+		layout{ salvagePipeline.layout },
+
+		memory(std::move(salvagePipeline.memory)),
+		graphicsPipeline{ salvagePipeline.graphicsPipeline } {
 		salvagePipeline.isSalvagedRemains = true;
+
+		salvagePipeline.renderingInfo = {};
+		salvagePipeline.colorAttachmentFormat = {};
+		salvagePipeline.manualShadersInfo = {};
+		salvagePipeline.shadersData = {};
+		salvagePipeline.shaderModule = VK_NULL_HANDLE;
+		salvagePipeline.vertexInputStateInfo = {};
+		salvagePipeline.vertexBinding = {};
+		salvagePipeline.attributeDescriptions = {};
+		salvagePipeline.inputAssemblyInfo = {};
+		salvagePipeline.viewportInfo = {};
+		salvagePipeline.rasterizationInfo = {};
+		salvagePipeline.multisampleInfo = {};
+		salvagePipeline.depthStencilInfo = {};
+		salvagePipeline.colorBlendInfo = {};
+		salvagePipeline.colorAttachmentState = {};
+		salvagePipeline.dynamicStateInfo = {};
+		salvagePipeline.dynamicStates = {};
+		salvagePipeline.layout = VK_NULL_HANDLE;
+
+		salvagePipeline.graphicsPipeline = VK_NULL_HANDLE;
+
+		std::cout << "---MOVED GRAPHICS PIPELINE---\n";
 	}
 
 	Pipeline::~Pipeline() {
 		if(!isSalvagedRemains) {
-		
+			std::cout << "---CLEANING GRAPHICS PIPELINE...---\n";
+
+			vkDestroyShaderModule(memory.swapchain.queues.backend.device, shaderModule, nullptr);
+			vkDestroyPipelineLayout(memory.swapchain.queues.backend.device, layout, nullptr);
+			vkDestroyPipeline(memory.swapchain.queues.backend.device, graphicsPipeline, nullptr);
 		}
 	}
 
 	void Pipeline::createGraphicsPipeline() {
+		VkGraphicsPipelineCreateInfo graphicsPipelineInfo = {
+			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+			.pNext = &renderingInfo,
+			.flags = 0,
+			.stageCount = static_cast<uint32_t>(manualShadersInfo.size()),
+			.pStages = manualShadersInfo.data(),
+			.pVertexInputState = &vertexInputStateInfo,
+			.pInputAssemblyState = &inputAssemblyInfo,
+			.pTessellationState = nullptr,
+			.pViewportState = &viewportInfo,
+			.pRasterizationState = &rasterizationInfo,
+			.pMultisampleState = &multisampleInfo,
+			.pDepthStencilState = &depthStencilInfo,
+			.pColorBlendState = &colorBlendInfo,
+			.pDynamicState = &dynamicStateInfo,
+			.layout = layout,
+			.renderPass = VK_NULL_HANDLE,
+			.subpass = 0,
+			.basePipelineHandle = VK_NULL_HANDLE,
+			.basePipelineIndex = 0
+		};
 
+		if(vkCreateGraphicsPipelines(memory.swapchain.queues.backend.device, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, nullptr, &graphicsPipeline) == VK_SUCCESS) {
+			std::cout << "Vulkan graphics pipeline created\n";
+		} else {
+			throw std::runtime_error("Vulkan graphics pipeline creation failure");
+		}
 	}
 
 	void Pipeline::initPipelineRenderingCreateInfo() {
@@ -142,22 +245,88 @@ namespace Vulkan {
 	}
 
 	void Pipeline::initPipelineRasterizationStateCreateInfo() {
+		VkPipelineRasterizationStateCreateInfo rasterizationInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.depthClampEnable = VK_FALSE,
+			.rasterizerDiscardEnable = VK_FALSE,
+			.polygonMode = VK_POLYGON_MODE_LINE,
+			.cullMode = VK_CULL_MODE_BACK_BIT,
+			.depthBiasConstantFactor = 1.0f,
+			.depthBiasClamp = 0.0f,
+			.depthBiasSlopeFactor = 1.0f,
+			.lineWidth = 10.0f
+		};
 
+		this->rasterizationInfo = rasterizationInfo;
 	}
 
 	void Pipeline::initPipelineMultisampleStateCreateInfo() {
+		VkPipelineMultisampleStateCreateInfo multisampleInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+			.sampleShadingEnable = VK_FALSE,
+			.minSampleShading = 0.0f,
+			.pSampleMask = nullptr,
+			.alphaToCoverageEnable = VK_FALSE,
+			.alphaToOneEnable = VK_FALSE
+		};
 
+		this->multisampleInfo = multisampleInfo;
 	}
 
 	void Pipeline::initPipelineDepthStencilStateCreateInfo() {
+		VkPipelineDepthStencilStateCreateInfo depthStencilInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.depthTestEnable = VK_FALSE,
+			.depthWriteEnable = VK_FALSE,
+			.depthCompareOp = VK_COMPARE_OP_NEVER,
+			.depthBoundsTestEnable = VK_FALSE,
+			.stencilTestEnable = VK_FALSE,
+			.front = {},
+			.back = {},
+			.minDepthBounds = 0.0f,
+			.maxDepthBounds = 1.0f,
+		};
 
+		this->depthStencilInfo = depthStencilInfo;
 	}
 
 	void Pipeline::initPipelineColorBlendStateCreateInfo() {
+		VkPipelineColorBlendAttachmentState colorAttachmentState = {
+			.blendEnable = VK_FALSE,
+			.srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+			.dstColorBlendFactor = VK_BLEND_FACTOR_ONE,
+			.colorBlendOp = VK_BLEND_OP_ADD,
+			.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+			.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+			.alphaBlendOp = VK_BLEND_OP_ADD,
+			.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+		};
+		this->colorAttachmentState = colorAttachmentState;
 
+		VkPipelineColorBlendStateCreateInfo colorBlendInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.logicOpEnable = VK_FALSE,
+			.logicOp = VK_LOGIC_OP_CLEAR,
+			.attachmentCount = 1,
+			.pAttachments = &(this->colorAttachmentState),
+			.blendConstants = { 1.0f, 1.0f, 1.0f, 1.0f }
+		};
+		this->colorBlendInfo = colorBlendInfo;
 	}
 
 	void Pipeline::initPipelineDynamicStateCreateInfo() {
+		dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+		dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
 		VkPipelineDynamicStateCreateInfo dynamicStateInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 			.pNext = nullptr,
@@ -170,6 +339,18 @@ namespace Vulkan {
 	}
 
 	void Pipeline::initPipelineLayout() {
+		VkPipelineLayoutCreateInfo layoutInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.setLayoutCount = 0,
+			.pSetLayouts = nullptr,
+			.pushConstantRangeCount = 0,
+			.pPushConstantRanges = nullptr
+		};
 
+		if(vkCreatePipelineLayout(memory.swapchain.queues.backend.device, &layoutInfo, nullptr, &layout) != VK_SUCCESS) {
+			throw std::runtime_error("Pipeline layout creation failure");
+		}
 	}
 }
