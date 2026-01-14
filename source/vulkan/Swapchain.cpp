@@ -18,7 +18,7 @@ namespace Vulkan {
 		queues(std::move(salvageQueues)), swapchain{ VK_NULL_HANDLE }, images{}, imageViews{} {
 		std::cout << "---CREATING SWAPCHAIN...---\n";
 
-		initializeImageExtent();
+		initImageExtent();
 		createSwapchain();
 		createImages();
 		createImageViews();
@@ -89,7 +89,7 @@ namespace Vulkan {
 		}
 	}
 
-	void Swapchain::initializeImageExtent() {
+	void Swapchain::initImageExtent() {
 		VkSurfaceCapabilitiesKHR surfaceCapabilities{};
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(queues.backend.physicalDevice, queues.backend.surface, &surfaceCapabilities);
 

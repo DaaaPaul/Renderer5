@@ -43,7 +43,7 @@ namespace Vulkan {
 		void createImages();
 		void createImageViews();
 
-		void initializeImageExtent();
+		void initImageExtent();
 	public:
 		Swapchain(Queues&& salvageQueues);
 		Swapchain(Swapchain&& salvageSwapchain);

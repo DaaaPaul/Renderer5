@@ -1,0 +1,5 @@
+EASY:
+	- create initImageFormat() in Vulkan::Swapchain
+	- create initPresentMode() in Vulkan::Swapchain
+
+HARD:
