@@ -4,7 +4,7 @@
 namespace Vulkan {
 	Swapchain::Swapchain(Queues&& salvageQueues) : 
 		isSalvagedRemains{ false }, 
-		wantedImageCount{ 3 }, 
+		wantedImageCount{ 6 }, 
 		realImageCount{ 0xFFFFFFFF },
 		imageFormat{ VK_FORMAT_R8G8B8A8_SRGB },
 		imageColorspace{ VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },

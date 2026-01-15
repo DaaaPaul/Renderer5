@@ -7,21 +7,30 @@
 namespace Vulkan {
 	Engine::Engine(Commands&& salvageCommands) :
 		GRAPHICS_QUEUE_COUNT{ salvageCommands.GRAPHICS_QUEUE_COUNT },
-		FRAMES_IN_QUEUE{ salvageCommands.FRAMES_IN_QUEUE },
+		FLIGHT_COUNT{ salvageCommands.FLIGHT_COUNT },
 		queueIndex{ 0 },
-		frameInQueueIndex{ 0 },
+		flightIndex{ 0 },
 		clearColor{ 0.55f, 0.27f, 0.074f, 1.0f },
+		framesLastSecond{ 0 },
 		commands(std::move(salvageCommands)) {
 		std::cout << "---CREATED ENGINE---\n";
 	}
 
 	void Engine::run() {
+		uint16_t nextSecondMark = 1;
+
 		while (!glfwWindowShouldClose(BACKEND.window)) {
 			queuesDrawFrame();
 			glfwPollEvents();
 
 			if(glfwGetKey(BACKEND.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 				glfwSetWindowShouldClose(BACKEND.window, true);
+			}
+
+			if(glfwGetTime() > nextSecondMark) {
+				nextSecondMark++;
+				std::cout << "Frames last second: " << framesLastSecond << '\n';
+				framesLastSecond = 0;
 			}
 		}
 
@@ -34,40 +43,43 @@ namespace Vulkan {
 		for(int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
 			renderAndPresent(commands.sync.pipeline.memory.swapchain.queues.graphicsQueues[i]);
 		}
-
-		queueIndex = (queueIndex + 1) % GRAPHICS_QUEUE_COUNT;
+		
+		flightIndex = (flightIndex + 1) % FLIGHT_COUNT;
 	}
 
 	void Engine::renderAndPresent(VkQueue& queue) {
-		vkWaitForFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[queueIndex][frameInQueueIndex], true, UINT64_MAX);
+		vkWaitForFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[queueIndex][flightIndex], true, UINT64_MAX);
+		framesLastSecond++;
 
 		uint32_t imageIndex = 0xFFFFFFFF;
-		vkAcquireNextImageKHR(BACKEND.device, commands.sync.pipeline.memory.swapchain.swapchain, UINT64_MAX, commands.sync.imageReady[queueIndex][frameInQueueIndex], VK_NULL_HANDLE, &imageIndex);
+		vkAcquireNextImageKHR(BACKEND.device, commands.sync.pipeline.memory.swapchain.swapchain, UINT64_MAX, commands.sync.imageReady[queueIndex][flightIndex], VK_NULL_HANDLE, &imageIndex);
 
-		vkResetFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[queueIndex][frameInQueueIndex]);
-		vkResetCommandBuffer(commands.commandBuffers[queueIndex][frameInQueueIndex], 0);
+		//std::cout << "Queue " << queueIndex << " flight " << flightIndex << " image " << imageIndex << '\n';
+
+		vkResetFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[queueIndex][flightIndex]);
+		vkResetCommandBuffer(commands.commandBuffers[queueIndex][flightIndex], 0);
 
 		VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		VkSubmitInfo drawSubmit = {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 			.pNext = nullptr,
 			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &commands.sync.imageReady[queueIndex][frameInQueueIndex],
+			.pWaitSemaphores = &commands.sync.imageReady[queueIndex][flightIndex],
 			.pWaitDstStageMask = &waitStage,
 			.commandBufferCount = 1,
-			.pCommandBuffers = &commands.commandBuffers[queueIndex][frameInQueueIndex],
+			.pCommandBuffers = &commands.commandBuffers[queueIndex][flightIndex],
 			.signalSemaphoreCount = 1,
-			.pSignalSemaphores = &commands.sync.imageFinished[queueIndex][frameInQueueIndex],
+			.pSignalSemaphores = &commands.sync.imageFinished[queueIndex][flightIndex],
 		};
 
 		record(commands.sync.pipeline.memory.swapchain.images[imageIndex], commands.sync.pipeline.memory.swapchain.imageViews[imageIndex]);
-		vkQueueSubmit(queue, 1, &drawSubmit, commands.sync.commandBufferFinished[queueIndex][frameInQueueIndex]);
+		vkQueueSubmit(queue, 1, &drawSubmit, commands.sync.commandBufferFinished[queueIndex][flightIndex]);
 
 		VkPresentInfoKHR presentInfo = {
 			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 			.pNext = nullptr,
 			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &commands.sync.imageFinished[queueIndex][frameInQueueIndex],
+			.pWaitSemaphores = &commands.sync.imageFinished[queueIndex][flightIndex],
 			.swapchainCount = 1,
 			.pSwapchains = &commands.sync.pipeline.memory.swapchain.swapchain,
 			.pImageIndices = &imageIndex,
@@ -75,11 +87,11 @@ namespace Vulkan {
 		};
 		vkQueuePresentKHR(queue, &presentInfo);
 
-		frameInQueueIndex = (frameInQueueIndex + 1) % FRAMES_IN_QUEUE;
+		queueIndex = (queueIndex + 1) % GRAPHICS_QUEUE_COUNT;
 	}
 
 	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {
-		VkCommandBuffer& targetCommandBuffer = commands.commandBuffers[queueIndex][frameInQueueIndex];
+		VkCommandBuffer& targetCommandBuffer = commands.commandBuffers[queueIndex][flightIndex];
 
 		VkCommandBufferBeginInfo beginInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -200,6 +212,6 @@ namespace Vulkan {
 			.pImageMemoryBarriers = &imageMemoryBarrier,
 		};
 
-		vkCmdPipelineBarrier2(commands.commandBuffers[queueIndex][frameInQueueIndex], &memoryBarriersInfo);
+		vkCmdPipelineBarrier2(commands.commandBuffers[queueIndex][flightIndex], &memoryBarriersInfo);
 	}
 }

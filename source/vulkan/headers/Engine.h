@@ -8,10 +8,12 @@ namespace Vulkan {
 	class Engine {
 	private:
 		const uint16_t GRAPHICS_QUEUE_COUNT;
-		const uint16_t FRAMES_IN_QUEUE;
+		const uint16_t FLIGHT_COUNT;
 		uint16_t queueIndex;
-		uint16_t frameInQueueIndex;
+		uint16_t flightIndex;
 		VkClearColorValue clearColor;
+
+		uint16_t framesLastSecond;
 
 		Commands commands;
 

@@ -5,7 +5,7 @@ namespace Vulkan {
 	Commands::Commands(Sync&& salvageSync) :
 		isSalvagedRemains{ false },
 		GRAPHICS_QUEUE_COUNT{ salvageSync.GRAPHICS_QUEUE_COUNT },
-		FRAMES_IN_QUEUE{ salvageSync.FRAMES_IN_QUEUE },
+		FLIGHT_COUNT{ salvageSync.FLIGHT_COUNT },
 		graphicsQueueFamilyIndex{ salvageSync.pipeline.memory.graphicsQueueFamilyIndex },
 		commandPool{ VK_NULL_HANDLE },
 		commandBuffers(GRAPHICS_QUEUE_COUNT),
@@ -18,7 +18,7 @@ namespace Vulkan {
 	Commands::Commands(Commands&& salvageCommands) : 
 		isSalvagedRemains{ false },
 		GRAPHICS_QUEUE_COUNT{ salvageCommands.GRAPHICS_QUEUE_COUNT },
-		FRAMES_IN_QUEUE{ salvageCommands.FRAMES_IN_QUEUE },
+		FLIGHT_COUNT{ salvageCommands.FLIGHT_COUNT },
 		graphicsQueueFamilyIndex{ salvageCommands.graphicsQueueFamilyIndex },
 		commandPool{ salvageCommands.commandPool },
 		commandBuffers{ salvageCommands.commandBuffers },
@@ -37,7 +37,7 @@ namespace Vulkan {
 			std::cout << "---CLEANING COMMAND OBJECTS...---\n";
 
 			for (int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
-				vkFreeCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, commandPool, FRAMES_IN_QUEUE, commandBuffers[i].data());
+				vkFreeCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, commandPool, FLIGHT_COUNT, commandBuffers[i].data());
 			}
 			vkDestroyCommandPool(sync.pipeline.memory.swapchain.queues.backend.device, commandPool, nullptr);
 		}
@@ -69,13 +69,13 @@ namespace Vulkan {
 			.pNext = nullptr,
 			.commandPool = commandPool,
 			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = FRAMES_IN_QUEUE
+			.commandBufferCount = FLIGHT_COUNT
 		};
 
 		for(int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
-			commandBuffers[i].resize(FRAMES_IN_QUEUE, VK_NULL_HANDLE);
+			commandBuffers[i].resize(FLIGHT_COUNT, VK_NULL_HANDLE);
 			if (vkAllocateCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, &commandBufferInfo, commandBuffers[i].data()) == VK_SUCCESS) {
-				std::cout << FRAMES_IN_QUEUE << " primary command buffers created for queue " << i << '\n';
+				std::cout << FLIGHT_COUNT << " primary command buffers created for queue " << i << '\n';
 			} else {
 				throw std::runtime_error("Command buffer creation failure");
 			}

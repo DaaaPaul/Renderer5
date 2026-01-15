@@ -14,7 +14,7 @@ namespace Vulkan {
 		bool isSalvagedRemains;
 
 		const uint16_t GRAPHICS_QUEUE_COUNT;
-		const uint16_t FRAMES_IN_QUEUE;
+		const uint16_t FLIGHT_COUNT;
 		uint32_t graphicsQueueFamilyIndex;
 
 		VkCommandPool commandPool;
