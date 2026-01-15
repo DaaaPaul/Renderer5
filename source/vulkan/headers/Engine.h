@@ -7,13 +7,15 @@
 namespace Vulkan {
 	class Engine {
 	private:
-		const uint16_t FRAMES_IN_FLIGHT;
-		uint16_t frameInFlightIndex;
+		const uint16_t GRAPHICS_QUEUE_COUNT;
+		const uint16_t FRAMES_IN_QUEUE;
+		uint16_t queueIndex;
+		uint16_t frameInQueueIndex;
 		VkClearColorValue clearColor;
 
 		Commands commands;
 
-		void drawToQueues();
+		void queuesDrawFrame();
 		void renderAndPresent(VkQueue& queue);
 
 		void record(VkImage& image, VkImageView& colorAttachmentImageView);
