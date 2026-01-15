@@ -3,6 +3,7 @@
 #include "vulkan/headers/Swapchain.h"
 #include "vulkan/headers/Memory.h"
 #include "vulkan/headers/Pipeline.h"
+#include "vulkan/headers/Sync.h"
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -14,6 +15,7 @@ int main() {
         Vulkan::Swapchain swapchain(std::move(queues));
         Vulkan::Memory memory(std::move(swapchain));
         Vulkan::Pipeline pipeline(std::move(memory));
+        Vulkan::Sync sync(std::move(pipeline));
     } catch(std::exception const& exception) {
         std::cout << "ERROR: " << exception.what() << '\n';
     }
