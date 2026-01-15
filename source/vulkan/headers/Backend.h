@@ -29,7 +29,7 @@ namespace Vulkan {
 		bool validationLayersEnabled;
 		std::vector<const char*> validationLayers;
 		uint32_t apiVersion;
-		uint32_t graphicsQueueCount;
+		uint16_t graphicsQueueCount;
 		std::vector<float> graphicsQueuePriorities;
 		uint32_t graphicsFamilyIndex;
 		std::vector<const char*> deviceExtensions;

@@ -13,11 +13,12 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
-		const uint16_t FRAMES_IN_FLIGHT;
+		const uint16_t GRAPHICS_QUEUE_COUNT;
+		const uint16_t FRAMES_IN_QUEUE;
 		uint32_t graphicsQueueFamilyIndex;
 
 		VkCommandPool commandPool;
-		std::vector<VkCommandBuffer> commandBuffers;
+		std::vector<std::vector<VkCommandBuffer>> commandBuffers;
 		Sync sync;
 
 		void createCommandObjects();

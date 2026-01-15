@@ -15,11 +15,12 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
-		const uint16_t FRAMES_IN_FLIGHT;
+		const uint16_t GRAPHICS_QUEUE_COUNT;
+		const uint16_t FRAMES_IN_QUEUE;
 
-		std::vector<VkSemaphore> imageReady;
-		std::vector<VkSemaphore> imageFinished;
-		std::vector<VkFence> commandBufferFinished;
+		std::vector<std::vector<VkSemaphore>> imageReady;
+		std::vector<std::vector<VkSemaphore>> imageFinished;
+		std::vector<std::vector<VkFence>> commandBufferFinished;
 		Pipeline pipeline;
 
 		void createSyncObjects();

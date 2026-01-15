@@ -4,10 +4,11 @@
 namespace Vulkan {
 	Sync::Sync(Pipeline&& salvagePipeline) :
 		isSalvagedRemains{ false },
-		FRAMES_IN_FLIGHT{ 4 },
-		imageReady(FRAMES_IN_FLIGHT),
-		imageFinished(FRAMES_IN_FLIGHT),
-		commandBufferFinished(FRAMES_IN_FLIGHT),
+		GRAPHICS_QUEUE_COUNT{ static_cast<uint16_t>(salvagePipeline.memory.swapchain.queues.graphicsQueues.size()) },
+		FRAMES_IN_QUEUE{ 2 },
+		imageReady(GRAPHICS_QUEUE_COUNT),
+		imageFinished(GRAPHICS_QUEUE_COUNT),
+		commandBufferFinished(GRAPHICS_QUEUE_COUNT),
 		pipeline(std::move(salvagePipeline)) {
 		std::cout << "---CREATING SYNC OBJECTS...---\n";
 
@@ -16,7 +17,8 @@ namespace Vulkan {
 
 	Sync::Sync(Sync&& salvageSync) :
 		isSalvagedRemains{ false },
-		FRAMES_IN_FLIGHT{ salvageSync.FRAMES_IN_FLIGHT },
+		GRAPHICS_QUEUE_COUNT{ salvageSync.GRAPHICS_QUEUE_COUNT },
+		FRAMES_IN_QUEUE{ salvageSync.FRAMES_IN_QUEUE },
 		imageReady{ salvageSync.imageReady },
 		imageFinished{ salvageSync.imageFinished },
 		commandBufferFinished{ salvageSync.commandBufferFinished },
@@ -34,10 +36,12 @@ namespace Vulkan {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING SYNC OBJECTS...---\n";
 
-			for(int i = 0; i < FRAMES_IN_FLIGHT; i++) {
-				vkDestroySemaphore(pipeline.memory.swapchain.queues.backend.device, imageReady[i], nullptr);
-				vkDestroySemaphore(pipeline.memory.swapchain.queues.backend.device, imageFinished[i], nullptr);
-				vkDestroyFence(pipeline.memory.swapchain.queues.backend.device, commandBufferFinished[i], nullptr);
+			for(int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
+				for(int j = 0; j < FRAMES_IN_QUEUE; j++) {
+					vkDestroySemaphore(pipeline.memory.swapchain.queues.backend.device, imageReady[i][j], nullptr);
+					vkDestroySemaphore(pipeline.memory.swapchain.queues.backend.device, imageFinished[i][j], nullptr);
+					vkDestroyFence(pipeline.memory.swapchain.queues.backend.device, commandBufferFinished[i][j], nullptr);
+				}
 			}
 		}
 	}
@@ -54,16 +58,19 @@ namespace Vulkan {
 			.flags = 0
 		};
 
-		for(int i = 0; i < FRAMES_IN_FLIGHT; i++) {
-			if(vkCreateSemaphore(pipeline.memory.swapchain.queues.backend.device, &semaphoreInfo, nullptr, &imageReady[i]) == VK_SUCCESS &&
-			   vkCreateSemaphore(pipeline.memory.swapchain.queues.backend.device, &semaphoreInfo, nullptr, &imageFinished[i]) == VK_SUCCESS) {
-				std::cout << "Semaphore pair for frame in flight " << i << " created\n";
-			} else {
-				throw std::runtime_error("Semaphore pair creation failure");
+		for(int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
+			imageReady[i].resize(FRAMES_IN_QUEUE, VK_NULL_HANDLE);
+			imageFinished[i].resize(FRAMES_IN_QUEUE, VK_NULL_HANDLE);
+
+			for(int j = 0; j < FRAMES_IN_QUEUE; j++) {
+				if (vkCreateSemaphore(pipeline.memory.swapchain.queues.backend.device, &semaphoreInfo, nullptr, &imageReady[i][j]) == VK_SUCCESS &&
+					vkCreateSemaphore(pipeline.memory.swapchain.queues.backend.device, &semaphoreInfo, nullptr, &imageFinished[i][j]) == VK_SUCCESS) {
+					std::cout << "Semaphore pair for queue " << i << " frame in flight " << j << " created\n";
+				} else {
+					throw std::runtime_error("Semaphore pair creation failure");
+				}
 			}
 		}
-
-
 	}
 
 	void Sync::createFences() {
@@ -73,11 +80,15 @@ namespace Vulkan {
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT
 		};
 
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++) {
-			if(vkCreateFence(pipeline.memory.swapchain.queues.backend.device, &fenceInfo, nullptr, &commandBufferFinished[i]) == VK_SUCCESS) {
-				std::cout << "Fence for frame in flight " << i << " created\n";
-			} else {
-				throw std::runtime_error("Fence creation failure");
+		for (int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
+			commandBufferFinished[i].resize(FRAMES_IN_QUEUE, VK_NULL_HANDLE);
+
+			for (int j = 0; j < FRAMES_IN_QUEUE; j++) {
+				if (vkCreateFence(pipeline.memory.swapchain.queues.backend.device, &fenceInfo, nullptr, &commandBufferFinished[i][j]) == VK_SUCCESS) {
+					std::cout << "Fence for queue " << i << " frame in flight " << j << " created\n";
+				} else {
+					throw std::runtime_error("Fence creation failure");
+				}
 			}
 		}
 	}

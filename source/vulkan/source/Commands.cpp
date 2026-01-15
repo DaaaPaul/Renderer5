@@ -4,10 +4,11 @@
 namespace Vulkan {
 	Commands::Commands(Sync&& salvageSync) :
 		isSalvagedRemains{ false },
-		FRAMES_IN_FLIGHT{ salvageSync.FRAMES_IN_FLIGHT },
+		GRAPHICS_QUEUE_COUNT{ salvageSync.GRAPHICS_QUEUE_COUNT },
+		FRAMES_IN_QUEUE{ salvageSync.FRAMES_IN_QUEUE },
 		graphicsQueueFamilyIndex{ salvageSync.pipeline.memory.graphicsQueueFamilyIndex },
 		commandPool{ VK_NULL_HANDLE },
-		commandBuffers(FRAMES_IN_FLIGHT),
+		commandBuffers(GRAPHICS_QUEUE_COUNT),
 		sync(std::move(salvageSync)) {
 		std::cout << "---CREATING COMMAND OBJECTS...---\n";
 
@@ -16,7 +17,8 @@ namespace Vulkan {
 
 	Commands::Commands(Commands&& salvageCommands) : 
 		isSalvagedRemains{ false },
-		FRAMES_IN_FLIGHT{ salvageCommands.FRAMES_IN_FLIGHT },
+		GRAPHICS_QUEUE_COUNT{ salvageCommands.GRAPHICS_QUEUE_COUNT },
+		FRAMES_IN_QUEUE{ salvageCommands.FRAMES_IN_QUEUE },
 		graphicsQueueFamilyIndex{ salvageCommands.graphicsQueueFamilyIndex },
 		commandPool{ salvageCommands.commandPool },
 		commandBuffers{ salvageCommands.commandBuffers },
@@ -34,7 +36,9 @@ namespace Vulkan {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING COMMAND OBJECTS...---\n";
 
-			vkFreeCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, commandPool, 2, commandBuffers.data());
+			for (int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
+				vkFreeCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, commandPool, FRAMES_IN_QUEUE, commandBuffers[i].data());
+			}
 			vkDestroyCommandPool(sync.pipeline.memory.swapchain.queues.backend.device, commandPool, nullptr);
 		}
 	}
@@ -65,13 +69,16 @@ namespace Vulkan {
 			.pNext = nullptr,
 			.commandPool = commandPool,
 			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = FRAMES_IN_FLIGHT
+			.commandBufferCount = FRAMES_IN_QUEUE
 		};
 
-		if (vkAllocateCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, &commandBufferInfo, commandBuffers.data()) == VK_SUCCESS) {
-			std::cout << FRAMES_IN_FLIGHT << " primary command buffers created straight submitted to ---> qf " << graphicsQueueFamilyIndex << '\n';
-		} else {
-			throw std::runtime_error("Command buffer creation failure");
+		for(int i = 0; i < GRAPHICS_QUEUE_COUNT; i++) {
+			commandBuffers[i].resize(FRAMES_IN_QUEUE, VK_NULL_HANDLE);
+			if (vkAllocateCommandBuffers(sync.pipeline.memory.swapchain.queues.backend.device, &commandBufferInfo, commandBuffers[i].data()) == VK_SUCCESS) {
+				std::cout << FRAMES_IN_QUEUE << " primary command buffers created for queue " << i << '\n';
+			} else {
+				throw std::runtime_error("Command buffer creation failure");
+			}
 		}
 	}
 }
