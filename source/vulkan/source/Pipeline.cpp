@@ -8,7 +8,7 @@ namespace Vulkan {
 		isSalvagedRemains{ false },
 
 		renderingInfo{},
-		colorAttachmentFormat{},
+		colorAttachmentFormat{ VK_FORMAT_R8G8B8A8_SRGB },
 		manualShadersInfo{},
 		shadersData{},
 		shaderModule{ VK_NULL_HANDLE },
@@ -253,6 +253,7 @@ namespace Vulkan {
 			.rasterizerDiscardEnable = VK_FALSE,
 			.polygonMode = VK_POLYGON_MODE_FILL,
 			.cullMode = VK_CULL_MODE_BACK_BIT,
+			.frontFace = VK_FRONT_FACE_CLOCKWISE,
 			.depthBiasConstantFactor = 1.0f,
 			.depthBiasClamp = 0.0f,
 			.depthBiasSlopeFactor = 1.0f,

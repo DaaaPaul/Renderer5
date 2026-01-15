@@ -8,7 +8,7 @@ namespace Vulkan {
 	Engine::Engine(Commands&& salvageCommands) :
 		FRAMES_IN_FLIGHT{ salvageCommands.FRAMES_IN_FLIGHT },
 		frameInFlightIndex{ 0 },
-		clearColor{ 139.0f, 69.0f, 19.0f, 0.0f },
+		clearColor{ 0.55f, 0.27f, 0.074f, 1.0f },
 		commands(std::move(salvageCommands)) {
 		std::cout << "---CREATED ENGINE---\n";
 	}
@@ -22,6 +22,9 @@ namespace Vulkan {
 				glfwSetWindowShouldClose(BACKEND.window, true);
 			}
 		}
+
+		vkQueueWaitIdle(commands.sync.pipeline.memory.swapchain.queues.graphicsQueues[0]);
+		vkQueueWaitIdle(commands.sync.pipeline.memory.swapchain.queues.graphicsQueues[1]);
 	}
 
 	void Engine::drawToQueues() {
@@ -51,7 +54,7 @@ namespace Vulkan {
 			.pSignalSemaphores = &commands.sync.imageFinished[frameInFlightIndex],
 		};
 
-		record(commands.sync.pipeline.memory.swapchain.images[frameInFlightIndex], commands.sync.pipeline.memory.swapchain.imageViews[frameInFlightIndex]);
+		record(commands.sync.pipeline.memory.swapchain.images[imageIndex], commands.sync.pipeline.memory.swapchain.imageViews[imageIndex]);
 		vkQueueSubmit(queue, 1, &drawSubmit, commands.sync.commandBufferFinished[frameInFlightIndex]);
 
 		VkPresentInfoKHR presentInfo = {
@@ -79,9 +82,7 @@ namespace Vulkan {
 			.pInheritanceInfo = nullptr
 		};
 
-		if(vkBeginCommandBuffer(targetCommandBuffer, &beginInfo) == VK_SUCCESS) {
-			std::cout << "@BEGIN COMMAND BUFFER RECORDING@";
-		} else {
+		if(vkBeginCommandBuffer(targetCommandBuffer, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Command buffer begin recording failure");
 		}
 
@@ -127,8 +128,8 @@ namespace Vulkan {
 		VkViewport viewport = {
 			.x = 0.0f,
 			.y = 0.0f,
-			.width = commands.sync.pipeline.memory.swapchain.imageExtent.width,
-			.height = commands.sync.pipeline.memory.swapchain.imageExtent.height,
+			.width = static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.width),
+			.height = static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.height),
 			.minDepth = 0.0f,
 			.maxDepth = 1.0f
 		};
@@ -152,7 +153,9 @@ namespace Vulkan {
 			VK_PIPELINE_STAGE_2_NONE,
 			VK_ACCESS_2_NONE);
 
-		vkEndCommandBuffer(targetCommandBuffer);
+		if (vkEndCommandBuffer(targetCommandBuffer) != VK_SUCCESS) {
+			throw std::runtime_error("Command buffer end recording failure");
+		}
 	}
 
 	void Engine::insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess) {
