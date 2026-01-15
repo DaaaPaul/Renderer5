@@ -1,5 +1,177 @@
 #include "../headers/Engine.h"
+#include <iostream>
+
+#define BACKEND commands.sync.pipeline.memory.swapchain.queues.backend
 
 namespace Vulkan {
+	Engine::Engine(Commands&& salvageCommands) :
+		isSalvagedRemains{ false },
+		clearColor{ 139.0f, 69.0f, 19.0f, 0.0f },
+		commands(std::move(salvageCommands)) {
+		std::cout << "---CREATED ENGINE---\n";
+	}
 
+	Engine::Engine(Engine&& salvageEngine) :
+		isSalvagedRemains{ false },
+		clearColor{ salvageEngine.clearColor },
+		commands(std::move(salvageEngine.commands)) {
+		salvageEngine.isSalvagedRemains = true;
+
+		salvageEngine.clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		std::cout << "---MOVED ENGINE---\n";
+	}
+
+	Engine::~Engine() {
+
+	}
+
+	void Engine::run() {
+		while (!glfwWindowShouldClose(BACKEND.window)) {
+			drawFrame();
+			glfwPollEvents();
+
+			if(glfwGetKey(BACKEND.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+				glfwSetWindowShouldClose(BACKEND.window, true);
+			}
+		}
+	}
+
+	void Engine::drawFrame() {
+		renderImage();
+		presentImage();
+	}
+
+	void Engine::renderImage() {
+
+	}
+
+	void Engine::presentImage() {
+
+	}
+
+	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {
+		VkCommandBuffer& targetCommandBuffer = commands.commandBuffers[frameInFlightIndex];
+
+		VkCommandBufferBeginInfo beginInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.pInheritanceInfo = nullptr
+		};
+
+		if(vkBeginCommandBuffer(targetCommandBuffer, &beginInfo) == VK_SUCCESS) {
+			std::cout << "@BEGIN COMMAND BUFFER RECORDING@";
+		} else {
+			throw std::runtime_error("Command buffer begin recording failure");
+		}
+
+		insertImageMemoryBarrier(image,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+			VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+		VkRenderingAttachmentInfo colorAttachmentInfo = {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = nullptr,
+			.imageView = colorAttachmentImageView,
+			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.resolveMode = VK_RESOLVE_MODE_NONE,
+			.resolveImageView = VK_NULL_HANDLE,
+			.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = clearColor
+		};
+
+		VkRect2D scissor = {
+			.offset = VkOffset2D(0, 0),
+			.extent = commands.sync.pipeline.memory.swapchain.imageExtent
+		};
+
+		VkRenderingInfo renderingInfo = {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.renderArea = scissor,
+			.layerCount = 1,
+			.viewMask = 0,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = &colorAttachmentInfo,
+			.pDepthAttachment = nullptr,
+			.pStencilAttachment = nullptr,
+		};
+
+		VkViewport viewport = {
+			.x = 0.0f,
+			.y = 0.0f,
+			.width = commands.sync.pipeline.memory.swapchain.imageExtent.width,
+			.height = commands.sync.pipeline.memory.swapchain.imageExtent.height,
+			.minDepth = 0.0f,
+			.maxDepth = 1.0f
+		};
+
+		vkCmdBeginRendering(targetCommandBuffer, &renderingInfo);
+		vkCmdBindPipeline(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.graphicsPipeline);
+		vkCmdSetViewport(targetCommandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(targetCommandBuffer, 0, 1, &scissor);
+
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &commands.sync.pipeline.memory.verticesBuffer, &offset);
+		vkCmdBindIndexBuffer(targetCommandBuffer, commands.sync.pipeline.memory.indicesBuffer, offset, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(targetCommandBuffer, commands.sync.pipeline.memory.indices.size(), 1, 0, 0, 0);
+		vkCmdEndRendering(targetCommandBuffer);
+
+		insertImageMemoryBarrier(image,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE);
+
+		vkEndCommandBuffer(targetCommandBuffer);
+	}
+
+	void Engine::insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess) {
+		VkImageSubresourceRange memoryBarrierResourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+		
+		VkImageMemoryBarrier2 imageMemoryBarrier = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext = nullptr,
+			.srcStageMask = sourceStage,
+			.srcAccessMask = sourceAccess,
+			.dstStageMask = destStage,
+			.dstAccessMask = destAccess,
+			.oldLayout = oldLayout,
+			.newLayout = newLayout,
+			.srcQueueFamilyIndex = commands.graphicsQueueFamilyIndex,
+			.dstQueueFamilyIndex = commands.graphicsQueueFamilyIndex,
+			.image = image,
+			.subresourceRange = memoryBarrierResourceRange
+		};
+
+		VkDependencyInfo memoryBarriersInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = nullptr,
+			.dependencyFlags = 0,
+			.memoryBarrierCount = 0,
+			.pMemoryBarriers = nullptr,
+			.bufferMemoryBarrierCount = 0,
+			.pBufferMemoryBarriers = nullptr,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageMemoryBarrier,
+		};
+
+		vkCmdPipelineBarrier2(commands.commandBuffers[frameInFlightIndex], &memoryBarriersInfo);
+	}
 }
