@@ -4,7 +4,7 @@
 namespace Vulkan {
 	Sync::Sync(Pipeline&& salvagePipeline) :
 		isSalvagedRemains{ false },
-		FRAMES_IN_FLIGHT{ 2 },
+		FRAMES_IN_FLIGHT{ 4 },
 		imageReady(FRAMES_IN_FLIGHT),
 		imageFinished(FRAMES_IN_FLIGHT),
 		commandBufferFinished(FRAMES_IN_FLIGHT),

@@ -7,16 +7,14 @@
 namespace Vulkan {
 	class Engine {
 	private:
-		bool isSalvagedRemains;
-
+		const uint16_t FRAMES_IN_FLIGHT;
 		uint16_t frameInFlightIndex;
 		VkClearColorValue clearColor;
 
 		Commands commands;
 
-		void drawFrame();
-		void renderImage();
-		void presentImage();
+		void drawToQueues();
+		void renderAndPresent(VkQueue& queue);
 
 		void record(VkImage& image, VkImageView& colorAttachmentImageView);
 		void insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
@@ -24,8 +22,6 @@ namespace Vulkan {
 		void run();
 
 		Engine(Commands&& salvageCommands);
-		Engine(Engine&& salvageEngine);
-		~Engine();
 
 		Engine(Engine const&) = delete;
 		Engine& operator=(Engine const&) = delete;

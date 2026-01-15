@@ -1,34 +1,21 @@
 #include "../headers/Engine.h"
 #include <iostream>
+#include <climits>
 
 #define BACKEND commands.sync.pipeline.memory.swapchain.queues.backend
 
 namespace Vulkan {
 	Engine::Engine(Commands&& salvageCommands) :
-		isSalvagedRemains{ false },
+		FRAMES_IN_FLIGHT{ salvageCommands.FRAMES_IN_FLIGHT },
+		frameInFlightIndex{ 0 },
 		clearColor{ 139.0f, 69.0f, 19.0f, 0.0f },
 		commands(std::move(salvageCommands)) {
 		std::cout << "---CREATED ENGINE---\n";
 	}
 
-	Engine::Engine(Engine&& salvageEngine) :
-		isSalvagedRemains{ false },
-		clearColor{ salvageEngine.clearColor },
-		commands(std::move(salvageEngine.commands)) {
-		salvageEngine.isSalvagedRemains = true;
-
-		salvageEngine.clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		std::cout << "---MOVED ENGINE---\n";
-	}
-
-	Engine::~Engine() {
-
-	}
-
 	void Engine::run() {
 		while (!glfwWindowShouldClose(BACKEND.window)) {
-			drawFrame();
+			drawToQueues();
 			glfwPollEvents();
 
 			if(glfwGetKey(BACKEND.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -37,17 +24,49 @@ namespace Vulkan {
 		}
 	}
 
-	void Engine::drawFrame() {
-		renderImage();
-		presentImage();
+	void Engine::drawToQueues() {
+		renderAndPresent(commands.sync.pipeline.memory.swapchain.queues.graphicsQueues[0]);
+		renderAndPresent(commands.sync.pipeline.memory.swapchain.queues.graphicsQueues[1]);
 	}
 
-	void Engine::renderImage() {
+	void Engine::renderAndPresent(VkQueue& queue) {
+		vkWaitForFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[frameInFlightIndex], true, UINT64_MAX);
 
-	}
+		uint32_t imageIndex = 0xFFFFFFFF;
+		vkAcquireNextImageKHR(BACKEND.device, commands.sync.pipeline.memory.swapchain.swapchain, UINT64_MAX, commands.sync.imageReady[frameInFlightIndex], VK_NULL_HANDLE, &imageIndex);
 
-	void Engine::presentImage() {
+		vkResetFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[frameInFlightIndex]);
+		vkResetCommandBuffer(commands.commandBuffers[frameInFlightIndex], 0);
 
+		VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		VkSubmitInfo drawSubmit = {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &commands.sync.imageReady[frameInFlightIndex],
+			.pWaitDstStageMask = &waitStage,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &commands.commandBuffers[frameInFlightIndex],
+			.signalSemaphoreCount = 1,
+			.pSignalSemaphores = &commands.sync.imageFinished[frameInFlightIndex],
+		};
+
+		record(commands.sync.pipeline.memory.swapchain.images[frameInFlightIndex], commands.sync.pipeline.memory.swapchain.imageViews[frameInFlightIndex]);
+		vkQueueSubmit(queue, 1, &drawSubmit, commands.sync.commandBufferFinished[frameInFlightIndex]);
+
+		VkPresentInfoKHR presentInfo = {
+			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &commands.sync.imageFinished[frameInFlightIndex],
+			.swapchainCount = 1,
+			.pSwapchains = &commands.sync.pipeline.memory.swapchain.swapchain,
+			.pImageIndices = &imageIndex,
+			.pResults = nullptr,
+		};
+		vkQueuePresentKHR(queue, &presentInfo);
+
+		frameInFlightIndex = (frameInFlightIndex + 1) % FRAMES_IN_FLIGHT;
 	}
 
 	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {
