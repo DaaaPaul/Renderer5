@@ -54,8 +54,6 @@ namespace Vulkan {
 		uint32_t imageIndex = 0xFFFFFFFF;
 		vkAcquireNextImageKHR(BACKEND.device, commands.sync.pipeline.memory.swapchain.swapchain, UINT64_MAX, commands.sync.imageReady[queueIndex][flightIndex], VK_NULL_HANDLE, &imageIndex);
 
-		//std::cout << "Queue " << queueIndex << " flight " << flightIndex << " image " << imageIndex << '\n';
-
 		vkResetFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[queueIndex][flightIndex]);
 		vkResetCommandBuffer(commands.commandBuffers[queueIndex][flightIndex], 0);
 

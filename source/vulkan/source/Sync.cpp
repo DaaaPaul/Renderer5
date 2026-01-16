@@ -10,6 +10,8 @@ namespace Vulkan {
 		imageFinished(GRAPHICS_QUEUE_COUNT),
 		commandBufferFinished(GRAPHICS_QUEUE_COUNT),
 		pipeline(std::move(salvagePipeline)) {
+		assert(FLIGHT_COUNT == pipeline.memory.FLIGHT_COUNT);
+
 		std::cout << "---CREATING SYNC OBJECTS...---\n";
 
 		createSyncObjects();

@@ -20,6 +20,8 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
+		const uint16_t FLIGHT_COUNT;
+
 		std::vector<Geometry::Vertex> vertices;
 		std::vector<uint32_t> indices;
 		uint32_t graphicsQueueFamilyIndex;
@@ -44,14 +46,19 @@ namespace Vulkan {
 		VkBuffer stagedVertices;
 		VkBuffer stagedIndices;
 
+		std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings;
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorPool descriptorPool;
 		VkDescriptorSet descriptorSet;
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<void*> uniformBuffersAddresses;
 
+		void setupVerticesIndicesBuffers();
+		void setupDescriptorSets();
+
 		void createVerticesBuffer();
 		void createIndicesBuffer();
+		void createUniformBuffer();
 		void createStagedVertices();
 		void createStagedIndices();
 		void allocateGPUMemory();
@@ -59,12 +66,16 @@ namespace Vulkan {
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
 
-		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
+		void createDescriptorSetLayout();
+		void createDescriptorPool();
+		void createDescriptorSet();
 
+		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
 		VkDeviceSize calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2, VkDeviceSize& offset1, VkDeviceSize& offset2);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
 		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning);
+
 	public:
 		Memory(Swapchain&& salvageSwapchain);
 		Memory(Memory&& salvageMemory);

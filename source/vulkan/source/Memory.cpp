@@ -1,10 +1,12 @@
 #include "../headers/Memory.h"
+#include "../../geometry/headers/Transformation.h"
 #include <glm/glm.hpp>
 #include <iostream>
 
 namespace Vulkan {
 	Memory::Memory(Swapchain&& salvageSwapchain) :
-	isSalvagedRemains{ false },		
+	isSalvagedRemains{ false },
+	FLIGHT_COUNT{ 2 },
 	vertices{ 
 		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)),
 		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)),
@@ -32,30 +34,26 @@ namespace Vulkan {
 	swapchain{ std::move(salvageSwapchain) },
 	stagingMemory{ VK_NULL_HANDLE },
 	gpuMemory{ VK_NULL_HANDLE },
-	stagedVertices{ VK_NULL_HANDLE },
-	stagedIndices{ VK_NULL_HANDLE },
 	verticesBuffer{ VK_NULL_HANDLE },
 	indicesBuffer{ VK_NULL_HANDLE },
+	stagedVertices{ VK_NULL_HANDLE },
+	stagedIndices{ VK_NULL_HANDLE },
 
+	descriptorSetLayoutBindings{ Geometry::Transformation::getDescriptorSetLayoutBinding(0, 1) },
 	descriptorSetLayout{ VK_NULL_HANDLE },
 	descriptorPool{ VK_NULL_HANDLE },
 	descriptorSet{ VK_NULL_HANDLE },
-	uniformBuffers{},
+	uniformBuffers(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
 	uniformBuffersAddresses{} {
 		std::cout << "---CREATING MEMORY...---\n";
 
-		createVerticesBuffer();
-		createIndicesBuffer();
-		createStagedVertices();
-		createStagedIndices();
-		allocateGPUMemory();
-		allocateStagingMemory();
-		populateVerticesBuffer();
-		populateIndicesBuffer();
+		setupVerticesIndicesBuffers();
+		setupDescriptorSets();
 	}
 
 	Memory::Memory(Memory&& salvageMemory) :
 		isSalvagedRemains{ false },
+		FLIGHT_COUNT{ salvageMemory.FLIGHT_COUNT },
 		vertices{ std::move(salvageMemory.vertices) },
 		indices{ std::move(salvageMemory.indices) },
 		graphicsQueueFamilyIndex{ salvageMemory.graphicsQueueFamilyIndex },
@@ -75,11 +73,12 @@ namespace Vulkan {
 		swapchain{ std::move(salvageMemory.swapchain) },
 		stagingMemory{ salvageMemory.stagingMemory },
 		gpuMemory{ salvageMemory.gpuMemory },
-		stagedVertices{ salvageMemory.stagedVertices },
-		stagedIndices{ salvageMemory.stagedIndices },
 		verticesBuffer{ salvageMemory.verticesBuffer },
 		indicesBuffer{ salvageMemory.indicesBuffer },
+		stagedVertices{ salvageMemory.stagedVertices },
+		stagedIndices{ salvageMemory.stagedIndices },
 
+		descriptorSetLayoutBindings{ salvageMemory.descriptorSetLayoutBindings },
 		descriptorSetLayout{ salvageMemory.descriptorSetLayout },
 		descriptorPool{ salvageMemory.descriptorPool },
 		descriptorSet{ salvageMemory.descriptorSet },
@@ -108,6 +107,7 @@ namespace Vulkan {
 		salvageMemory.verticesBuffer = VK_NULL_HANDLE;
 		salvageMemory.indicesBuffer = VK_NULL_HANDLE;
 
+		salvageMemory.descriptorSetLayoutBindings = {};
 		salvageMemory.descriptorSetLayout = VK_NULL_HANDLE;
 		salvageMemory.descriptorPool = VK_NULL_HANDLE;
 		salvageMemory.descriptorSet = VK_NULL_HANDLE;
@@ -131,6 +131,17 @@ namespace Vulkan {
 		}
 	}
 
+	void Memory::setupVerticesIndicesBuffers() {
+		createVerticesBuffer();
+		createIndicesBuffer();
+		createStagedVertices();
+		createStagedIndices();
+		allocateGPUMemory();
+		allocateStagingMemory();
+		populateVerticesBuffer();
+		populateIndicesBuffer();
+	}
+
 	void Memory::createVerticesBuffer() {
 		createBuffer(verticesBuffer, sizeof(vertices[0]) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 		vkGetBufferMemoryRequirements(swapchain.queues.backend.device, verticesBuffer, &verticesBufferRequirements);
@@ -147,6 +158,10 @@ namespace Vulkan {
 		std::cout << "Created indices buffer with size " << sizeof(indices[0]) * indices.size() << 
 			" requiring size of " << indicesBufferRequirements.size << 
 			" and offsetted at " << indicesBufferRequirements.alignment << '\n';
+	}
+
+	void Memory::createUniformBuffer() {
+		
 	}
 
 	void Memory::createStagedVertices() {
@@ -209,6 +224,64 @@ namespace Vulkan {
 		vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
 
 		copyBuffer(stagedIndices, indicesBuffer, stagedIndicesSize);
+	}
+
+	void Memory::setupDescriptorSets() {
+		createDescriptorSetLayout();
+	}
+
+	void Memory::createDescriptorSetLayout() {
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size()),
+			.pBindings = descriptorSetLayoutBindings.data()
+		};
+
+		if(vkCreateDescriptorSetLayout(swapchain.queues.backend.device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) == VK_SUCCESS) {
+			std::cout << "Descriptor set layout created\n";
+		} else {
+			throw std::runtime_error("Descriptor set layout creation failure");
+		}
+	}
+
+	void Memory::createDescriptorPool() {
+		VkDescriptorPoolSize uniformBufferDescriptors = {
+			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = descriptorSetLayoutBindings[0].descriptorCount
+		};
+
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.maxSets = 1,
+			.poolSizeCount = 1,
+			.pPoolSizes = &uniformBufferDescriptors
+		};
+
+		if(vkCreateDescriptorPool(swapchain.queues.backend.device, &descriptorPoolInfo, nullptr, &descriptorPool) == VK_SUCCESS) {
+			std::cout << "Descriptor pool created\n";
+		} else {
+			throw std::runtime_error("Descriptor pool creation failure");
+		}
+	}
+
+	void Memory::createDescriptorSet() {
+		VkDescriptorSetAllocateInfo descriptorSetInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.descriptorPool = descriptorPool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &descriptorSetLayout
+		};
+
+		if(vkAllocateDescriptorSets(swapchain.queues.backend.device, &descriptorSetInfo, &descriptorSet) == VK_SUCCESS) {
+			std::cout << "Descriptor set created\n";
+		} else {
+			throw std::runtime_error("Descriptor set creation failure");
+		}
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
