@@ -44,11 +44,13 @@ namespace Vulkan {
 	descriptorPool{ VK_NULL_HANDLE },
 	descriptorSet{ VK_NULL_HANDLE },
 	uniformBuffers(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
+	uniformBuffersRequirements(uniformBuffers.size()),
+	uniformBuffersOffsets(uniformBuffers.size()),
 	uniformBuffersAddresses{} {
 		std::cout << "---CREATING MEMORY...---\n";
 
-		setupVerticesIndicesBuffers();
-		setupDescriptorSets();
+		setupBuffersAndMemory();
+		setupDescriptors();
 	}
 
 	Memory::Memory(Memory&& salvageMemory) :
@@ -83,6 +85,8 @@ namespace Vulkan {
 		descriptorPool{ salvageMemory.descriptorPool },
 		descriptorSet{ salvageMemory.descriptorSet },
 		uniformBuffers{ salvageMemory.uniformBuffers },
+		uniformBuffersRequirements{ salvageMemory.uniformBuffersRequirements },
+		uniformBuffersOffsets{ salvageMemory.uniformBuffersOffsets },
 		uniformBuffersAddresses{ salvageMemory.uniformBuffersAddresses } {
 		salvageMemory.isSalvagedRemains = true;
 
@@ -111,8 +115,10 @@ namespace Vulkan {
 		salvageMemory.descriptorSetLayout = VK_NULL_HANDLE;
 		salvageMemory.descriptorPool = VK_NULL_HANDLE;
 		salvageMemory.descriptorSet = VK_NULL_HANDLE;
-		salvageMemory.uniformBuffers.clear();
-		salvageMemory.uniformBuffersAddresses.clear();
+		salvageMemory.uniformBuffers = {};
+		salvageMemory.uniformBuffersRequirements = {};
+		salvageMemory.uniformBuffersOffsets = {};
+		salvageMemory.uniformBuffersAddresses = {};
 		
 		std::cout << "---MOVED MEMORY---\n";
 	}
@@ -131,9 +137,10 @@ namespace Vulkan {
 		}
 	}
 
-	void Memory::setupVerticesIndicesBuffers() {
+	void Memory::setupBuffersAndMemory() {
 		createVerticesBuffer();
 		createIndicesBuffer();
+		createUniformBuffers();
 		createStagedVertices();
 		createStagedIndices();
 		allocateGPUMemory();
@@ -160,8 +167,13 @@ namespace Vulkan {
 			" and offsetted at " << indicesBufferRequirements.alignment << '\n';
 	}
 
-	void Memory::createUniformBuffer() {
-		
+	void Memory::createUniformBuffers() {
+		for(int i = 0; i < uniformBuffers.size(); i++) {
+			createBuffer(uniformBuffers[i], sizeof(Geometry::Transformation), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+			vkGetBufferMemoryRequirements(swapchain.queues.backend.device, uniformBuffers[i], &uniformBuffersRequirements[i]);
+		}
+
+		std::cout << "Created " << uniformBuffers.size() << " uniform buffers with size " << sizeof(Geometry::Transformation) << '\n';
 	}
 
 	void Memory::createStagedVertices() {
@@ -183,16 +195,53 @@ namespace Vulkan {
 	}
 
 	void Memory::allocateGPUMemory() {
-		VkDeviceSize allocationSize = calculateAllocationSize(verticesBufferRequirements.size, verticesBufferRequirements.alignment, indicesBufferRequirements.size, indicesBufferRequirements.alignment, verticesBufferOffset, indicesBufferOffset);
-		uint32_t memoryTypeIndex = getMemoryTypeIndex(verticesBufferRequirements.memoryTypeBits & indicesBufferRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		std::vector<VkDeviceSize> gpuBufferSizeRequirements{};
+		gpuBufferSizeRequirements.push_back(verticesBufferRequirements.size);
+		gpuBufferSizeRequirements.push_back(indicesBufferRequirements.size);
+		for(VkMemoryRequirements const& uniformBufferRequirements : uniformBuffersRequirements) {
+			gpuBufferSizeRequirements.push_back(uniformBufferRequirements.size);
+		}
+
+		std::vector<VkDeviceSize> gpuBufferAlignments{};
+		gpuBufferAlignments.push_back(verticesBufferRequirements.alignment);
+		gpuBufferAlignments.push_back(indicesBufferRequirements.alignment);
+		for (VkMemoryRequirements const& uniformBufferRequirements : uniformBuffersRequirements) {
+			gpuBufferAlignments.push_back(uniformBufferRequirements.alignment);
+		}
+
+		std::vector<VkDeviceSize> offsets(gpuBufferAlignments.size());
+
+		VkDeviceSize allocationSize = calculateAllocationSize(gpuBufferSizeRequirements, gpuBufferAlignments, offsets);
+		verticesBufferOffset = offsets[0];
+		indicesBufferOffset = offsets[1];
+		offsets.erase(offsets.begin());
+		offsets.erase(offsets.begin());
+		uniformBuffersOffsets = offsets;
+		
+		uint32_t validMemoryTypes = verticesBufferRequirements.memoryTypeBits & indicesBufferRequirements.memoryTypeBits;
+		for (VkMemoryRequirements const& uniformBufferRequirements : uniformBuffersRequirements) {
+			validMemoryTypes &= uniformBufferRequirements.memoryTypeBits;
+		}
+		VkMemoryPropertyFlags neededMemoryType = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+		uint32_t memoryTypeIndex = getMemoryTypeIndex(validMemoryTypes, neededMemoryType);
 		allocateMemory(gpuMemory, allocationSize, memoryTypeIndex);
 
 		std::cout << "Allocated gpu memory with size " << allocationSize << " and memory type " << memoryTypeIndex << '\n';
 	}
 
 	void Memory::allocateStagingMemory() {
-		VkDeviceSize allocationSize = calculateAllocationSize(stagedVerticesRequirements.size, stagedVerticesRequirements.alignment, stagedIndicesRequirements.size, stagedIndicesRequirements.alignment, stagedVerticesOffset, stagedIndicesOffset);
-		uint32_t memoryTypeIndex = getMemoryTypeIndex(stagedVerticesRequirements.memoryTypeBits & stagedIndicesRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		std::vector<VkDeviceSize> stagingBufferSizeRequirements = { stagedVerticesRequirements.size, stagedIndicesRequirements.size };
+		std::vector<VkDeviceSize> stagingBufferAlignments = { stagedVerticesRequirements.alignment , stagedIndicesRequirements.alignment };
+		std::vector<VkDeviceSize> offsets(stagingBufferSizeRequirements.size());
+
+		VkDeviceSize allocationSize = calculateAllocationSize(stagingBufferSizeRequirements, stagingBufferAlignments, offsets);
+		stagedVerticesOffset = offsets[0];
+		stagedIndicesOffset = offsets[1];
+
+		uint32_t validMemoryTypes = stagedVerticesRequirements.memoryTypeBits & stagedIndicesRequirements.memoryTypeBits;
+		VkMemoryPropertyFlags neededMemoryType = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		uint32_t memoryTypeIndex = getMemoryTypeIndex(validMemoryTypes, neededMemoryType);
 		allocateMemory(stagingMemory, allocationSize, memoryTypeIndex);
 
 		std::cout << "Allocated staging memory with size " << allocationSize << " and memory type " << memoryTypeIndex << '\n';
@@ -226,8 +275,11 @@ namespace Vulkan {
 		copyBuffer(stagedIndices, indicesBuffer, stagedIndicesSize);
 	}
 
-	void Memory::setupDescriptorSets() {
+	void Memory::setupDescriptors() {
 		createDescriptorSetLayout();
+		createDescriptorPool();
+		createDescriptorSet();
+		uniformBuffersToDescriptors();
 	}
 
 	void Memory::createDescriptorSetLayout() {
@@ -284,6 +336,10 @@ namespace Vulkan {
 		}
 	}
 
+	void Memory::uniformBuffersToDescriptors() {
+		
+	}
+
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
 		VkPhysicalDeviceMemoryProperties2 memoryProperties{
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2
@@ -315,18 +371,19 @@ namespace Vulkan {
 		}
 	}
 
-	VkDeviceSize Memory::calculateAllocationSize(VkDeviceSize size1, VkDeviceSize alignment1, VkDeviceSize size2, VkDeviceSize alignment2, VkDeviceSize& offset1, VkDeviceSize& offset2) {
+	VkDeviceSize Memory::calculateAllocationSize(std::vector<VkDeviceSize> bufferSizes, std::vector<VkDeviceSize> alignments, std::vector<VkDeviceSize>& offsetsToSet) {
 		VkDeviceSize allocationSize = 0;
-		offset1 = 0;
+		uint32_t buffersCount = static_cast<uint32_t>(bufferSizes.size());
 
-		allocationSize += size1;
+		for(int i = 0; i < buffersCount; i++) {
+			while(allocationSize % alignments[i] != 0) {
+				allocationSize++;
+			}
+			
+			offsetsToSet[i] = allocationSize;
 
-		while (allocationSize % alignment2 != 0) {
-			allocationSize++;
+			allocationSize += bufferSizes[i];
 		}
-		offset2 = allocationSize;
-
-		allocationSize += size2;
 
 		return allocationSize;
 	}

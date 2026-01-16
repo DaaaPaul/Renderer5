@@ -1,7 +1,7 @@
 #include "../headers/Transformation.h"
 
-namespace Transformation {
-	static VkDescriptorSetLayoutBinding Transformation::getDescriptorSetLayoutBinding(uint32_t binding, uint32_t quantity) {
+namespace Geometry {
+	VkDescriptorSetLayoutBinding Transformation::getDescriptorSetLayoutBinding(uint32_t binding, uint32_t quantity) {
 		VkDescriptorSetLayoutBinding layoutBinding = {
 			.binding = binding,
 			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
