@@ -5,7 +5,7 @@ namespace Vulkan {
 	Sync::Sync(Pipeline&& salvagePipeline) :
 		isSalvagedRemains{ false },
 		GRAPHICS_QUEUE_COUNT{ static_cast<uint16_t>(salvagePipeline.memory.swapchain.queues.graphicsQueues.size()) },
-		FLIGHT_COUNT{ 2 },
+		FLIGHT_COUNT{ 3 },
 		imageReady(GRAPHICS_QUEUE_COUNT),
 		imageFinished(GRAPHICS_QUEUE_COUNT),
 		commandBufferFinished(GRAPHICS_QUEUE_COUNT),

@@ -54,6 +54,9 @@ namespace Vulkan {
 		uint32_t imageIndex = 0xFFFFFFFF;
 		vkAcquireNextImageKHR(BACKEND.device, commands.sync.pipeline.memory.swapchain.swapchain, UINT64_MAX, commands.sync.imageReady[queueIndex][flightIndex], VK_NULL_HANDLE, &imageIndex);
 
+		//std::cout << "[" << queueIndex << "][" << flightIndex << "]\n";
+		//std::cout << "Queue " << queueIndex << " command " << flightIndex << " image " << imageIndex << '\n';
+
 		vkResetFences(BACKEND.device, 1, &commands.sync.commandBufferFinished[queueIndex][flightIndex]);
 		vkResetCommandBuffer(commands.commandBuffers[queueIndex][flightIndex], 0);
 
@@ -105,7 +108,7 @@ namespace Vulkan {
 		insertImageMemoryBarrier(image,
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
 			VK_ACCESS_2_NONE,
 			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
 			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);

@@ -46,7 +46,6 @@ namespace Vulkan {
 		VkBuffer stagedVertices;
 		VkBuffer stagedIndices;
 
-		std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings;
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorPool descriptorPool;
 		VkDescriptorSet descriptorSet;
@@ -54,6 +53,8 @@ namespace Vulkan {
 		std::vector<VkMemoryRequirements> uniformBuffersRequirements;
 		std::vector<VkDeviceSize> uniformBuffersOffsets;
 		std::vector<void*> uniformBuffersAddresses;
+		uint32_t uniformBuffersBindingNum;
+		std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings;
 
 		void setupBuffersAndMemory();
 		void setupDescriptors();
@@ -68,6 +69,8 @@ namespace Vulkan {
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
 
+		void mapUniformBuffers();
+		void createDescriptorSetBindings();
 		void createDescriptorSetLayout();
 		void createDescriptorPool();
 		void createDescriptorSet();

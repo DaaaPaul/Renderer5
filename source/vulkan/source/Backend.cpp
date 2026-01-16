@@ -10,8 +10,8 @@ namespace Vulkan {
 		validationLayersEnabled{ true }, 
 		validationLayers{ "VK_LAYER_KHRONOS_validation" },
 		apiVersion{ VK_API_VERSION_1_3 }, 
-		graphicsQueueCount{ 6 }, 
-		graphicsQueuePriorities{0.5f, 0.5f, 0.5f},
+		graphicsQueueCount{ 2 }, 
+		graphicsQueuePriorities{0.5f, 0.5f},
 		graphicsFamilyIndex{ 0xFFFFFFFF },
 		deviceExtensions{ "VK_KHR_swapchain", "VK_KHR_synchronization2", "VK_KHR_spirv_1_4" },
 		window{ VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
