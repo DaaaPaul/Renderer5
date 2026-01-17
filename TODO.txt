@@ -2,5 +2,6 @@ EASY:
 	- create initImageFormat() in Vulkan::Swapchain
 	- create initPresentMode() in Vulkan::Swapchain
 	- add preference for discrete GPU in Vulkan::Backend
+	- mop up the messes
 
 HARD:

@@ -23,6 +23,7 @@ namespace Vulkan {
 		void writeUniformBuffer();
 		void record(VkImage& image, VkImageView& colorAttachmentImageView);
 		void insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
+		uint16_t convertDoubleToSingleIndex(uint16_t queueIndex, uint16_t flightIndex);
 	public:
 		void run();
 

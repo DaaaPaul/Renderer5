@@ -26,6 +26,7 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
+		// information parameters
 		bool validationLayersEnabled;
 		std::vector<const char*> validationLayers;
 		uint32_t apiVersion;
@@ -34,12 +35,21 @@ namespace Vulkan {
 		uint32_t graphicsFamilyIndex;
 		std::vector<const char*> deviceExtensions;
 
+		// vulkan objects
 		GLFWwindow* window;
 		VkInstance instance;
 		VkSurfaceKHR surface;
 		VkPhysicalDevice physicalDevice;
 		VkDevice device;
 
+		// utility
+		void clean();
+		void setupInformationParameters();
+		void takeEverything(Backend&& salvageBackend);
+		void salvageSelf();
+
+		// create vulkan objects
+		void setupBackend();
 		void createWindow();
 		void createInstance();
 		void createSurface();
@@ -57,8 +67,6 @@ namespace Vulkan {
 		uint32_t featuresStatus(VkPhysicalDevice const& physicalDevice);
 		uint32_t getPhysicalDeviceGaugement(std::array<uint32_t, 4> const& physicalDeviceStatus);
 		uint32_t getIndexOfGreatest(std::vector<uint32_t> const& physicalDeviceRatings);
-
-		VkDeviceQueueCreateInfo getGraphicsQueuesCreateInfo();
 	public:
 		Backend();
 		Backend(Backend&& salvageBackend);

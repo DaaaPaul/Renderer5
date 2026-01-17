@@ -96,9 +96,9 @@ namespace Vulkan {
 	}
 
 	void Engine::writeUniformBuffer() {
-		static auto loadTime = std::chrono::high_resolution_clock::now();
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float timeSinceLoad = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - loadTime).count();
+		const static std::chrono::steady_clock::time_point FIRST_CALL_TIME = std::chrono::high_resolution_clock::now();
+		std::chrono::steady_clock::time_point thisCallTime = std::chrono::high_resolution_clock::now();
+		float timeSinceLoad = std::chrono::duration<float, std::chrono::seconds::period>(thisCallTime - FIRST_CALL_TIME).count();
 
 		Geometry::Transformation transformation = {
 			.model = glm::rotate(glm::mat4(1.0f), timeSinceLoad * glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
@@ -107,13 +107,7 @@ namespace Vulkan {
 		};
 		transformation.projection[1][1] *= -1.0f;
 
-		uint16_t conversion = 0;
-		conversion += flightIndex;
-		if(queueIndex == 1) {
-			conversion += queueIndex * 3;
-		}
-
-		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[conversion], &transformation, sizeof(Geometry::Transformation));
+		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[convertDoubleToSingleIndex(queueIndex, flightIndex)], &transformation, sizeof(Geometry::Transformation));
 	}
 
 	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {
@@ -186,12 +180,7 @@ namespace Vulkan {
 		VkDeviceSize offset = 0;
 		vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &commands.sync.pipeline.memory.verticesBuffer, &offset);
 		vkCmdBindIndexBuffer(targetCommandBuffer, commands.sync.pipeline.memory.indicesBuffer, offset, VK_INDEX_TYPE_UINT32);
-		uint16_t conversion = 0;
-		conversion += flightIndex;
-		if (queueIndex == 1) {
-			conversion += queueIndex * 3;
-		}
-		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 1, &commands.sync.pipeline.memory.descriptorSets[conversion], 0, nullptr);
+		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 1, &commands.sync.pipeline.memory.descriptorSets[convertDoubleToSingleIndex(queueIndex, flightIndex)], 0, nullptr);
 		vkCmdDrawIndexed(targetCommandBuffer, commands.sync.pipeline.memory.indices.size(), 1, 0, 0, 0);
 		vkCmdEndRendering(targetCommandBuffer);
 
@@ -245,5 +234,15 @@ namespace Vulkan {
 		};
 
 		vkCmdPipelineBarrier2(commands.commandBuffers[queueIndex][flightIndex], &memoryBarriersInfo);
+	}
+
+	uint16_t Engine::convertDoubleToSingleIndex(uint16_t queueIndex, uint16_t flightIndex) {
+		uint16_t conversion = 0;
+
+		conversion += queueIndex;
+		conversion += flightIndex;
+		conversion += flightIndex * (GRAPHICS_QUEUE_COUNT - 1);
+
+		return conversion;
 	}
 }

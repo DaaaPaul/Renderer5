@@ -5,58 +5,94 @@
 #include <array>
 
 namespace Vulkan {
-	Backend::Backend() : 
-		isSalvagedRemains{ false },
-		validationLayersEnabled{ true }, 
-		validationLayers{ "VK_LAYER_KHRONOS_validation" },
-		apiVersion{ VK_API_VERSION_1_3 }, 
-		graphicsQueueCount{ 2 }, 
-		graphicsQueuePriorities{0.5f, 0.5f},
-		graphicsFamilyIndex{ 0xFFFFFFFF },
-		deviceExtensions{ "VK_KHR_swapchain", "VK_KHR_synchronization2", "VK_KHR_spirv_1_4" },
-		window{ VK_NULL_HANDLE }, instance{ VK_NULL_HANDLE }, surface{ VK_NULL_HANDLE }, physicalDevice{ VK_NULL_HANDLE }, device{ VK_NULL_HANDLE } {
-		
+	Backend::Backend() : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
 		std::cout << "---CREATING BACKEND...---\n";
 		
-		createWindow();
-		createInstance();
-		createSurface();
-		selectPhysicalDevice();
-		createDevice();
+		setupInformationParameters();
+		setupBackend();
 	}
 
-	Backend::Backend(Backend&& salvageBackend) :
-		isSalvagedRemains{ false },
-		validationLayersEnabled{ std::move(salvageBackend.validationLayersEnabled) },
-		validationLayers{ std::move(salvageBackend.validationLayers) },
-		apiVersion{ std::move(salvageBackend.apiVersion) },
-		graphicsQueueCount{ std::move(salvageBackend.graphicsQueueCount) },
-		graphicsQueuePriorities{ std::move(salvageBackend.graphicsQueuePriorities) },
-		graphicsFamilyIndex{ std::move(salvageBackend.graphicsFamilyIndex) },
-		deviceExtensions{ std::move(salvageBackend.deviceExtensions) },
-		window{ salvageBackend.window }, instance{ salvageBackend.instance }, surface{ salvageBackend.surface }, physicalDevice{ salvageBackend.physicalDevice }, device{ salvageBackend.device } {
+	Backend::Backend(Backend&& salvageBackend) : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
+		std::cout << "---MOVING BACKEND...---\n";
 
-		salvageBackend.isSalvagedRemains = true;
-
-		salvageBackend.window = nullptr;
-		salvageBackend.instance = VK_NULL_HANDLE;
-		salvageBackend.surface = VK_NULL_HANDLE;
-		salvageBackend.physicalDevice = VK_NULL_HANDLE;
-		salvageBackend.device = VK_NULL_HANDLE;
-
-		std::cout << "---MOVED BACKEND---\n";
+		takeEverything(std::move(salvageBackend));
+		salvageBackend.salvageSelf();
 	}
 
 	Backend::~Backend() {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING BACKEND (along with its queues)...---\n";
 
-			vkDestroyDevice(device, nullptr);
-			vkDestroySurfaceKHR(instance, surface, nullptr);
-			vkDestroyInstance(instance, nullptr);
-			glfwDestroyWindow(window);
-			glfwTerminate();
+			clean();
 		}
+	}
+
+	void Backend::clean() {
+		vkDestroyDevice(device, nullptr);
+		vkDestroySurfaceKHR(instance, surface, nullptr);
+		vkDestroyInstance(instance, nullptr);
+		glfwDestroyWindow(window);
+		glfwTerminate();
+	}
+	
+	void Backend::setupInformationParameters() {
+		// known at construction
+		isSalvagedRemains = false;
+
+		validationLayersEnabled = true;
+		validationLayers = {"VK_LAYER_KHRONOS_validation"};
+		apiVersion = VK_API_VERSION_1_3;
+		deviceExtensions = { "VK_KHR_swapchain", "VK_KHR_synchronization2", "VK_KHR_spirv_1_4"};
+		graphicsQueueCount = 2;
+		graphicsQueuePriorities = { 0.5f, 0.5f };
+
+		// unknown - populates later
+		graphicsFamilyIndex = {};
+	}
+
+	void Backend::takeEverything(Backend&& salvageBackend) {
+		isSalvagedRemains = false;
+
+		validationLayersEnabled = salvageBackend.validationLayersEnabled;
+		validationLayers = salvageBackend.validationLayers;
+		apiVersion = salvageBackend.apiVersion;
+		graphicsQueueCount = salvageBackend.graphicsQueueCount;
+		graphicsQueuePriorities = salvageBackend.graphicsQueuePriorities;
+		graphicsFamilyIndex = salvageBackend.graphicsFamilyIndex;
+		deviceExtensions = salvageBackend.deviceExtensions;
+
+		window = salvageBackend.window;
+		instance = salvageBackend.instance;
+		surface = salvageBackend.surface;
+		physicalDevice = salvageBackend.physicalDevice;
+		device = salvageBackend.device;
+	}
+
+	void Backend::salvageSelf() {
+		isSalvagedRemains = true;
+
+		validationLayersEnabled = {};
+		validationLayers = {};
+		apiVersion = {};
+		graphicsQueueCount = {};
+		graphicsQueuePriorities = {};
+		graphicsFamilyIndex = {};
+		deviceExtensions = {};
+
+		window = {};
+		instance = {};
+		surface = {};
+		physicalDevice = {};
+		device = {};
+	}
+
+
+	void Backend::setupBackend() {
+		createWindow();
+		createInstance();
+		createSurface();
+		selectPhysicalDevice();
+		createDevice();
 	}
 
 	void Backend::createWindow() {
@@ -190,6 +226,7 @@ namespace Vulkan {
 		std::vector<VkPhysicalDevice> allPhysicalDevices(physicalDeviceCount);
 		vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, allPhysicalDevices.data());
 
+		// first get statuses
 		std::vector<std::array<uint32_t, 4>> physicalDeviceStatuses{};
 		for(VkPhysicalDevice const& physicalDevice : allPhysicalDevices) {
 			physicalDeviceStatuses.push_back(getPhysicalDeviceStatus(physicalDevice));
@@ -202,11 +239,13 @@ namespace Vulkan {
 			std::cout << '\n';
 		}
 
+		// then gauge statuses
 		std::vector<uint32_t> physicalDeviceGaugements{};
 		for(std::array<uint32_t, 4> const& status : physicalDeviceStatuses) {
 			physicalDeviceGaugements.push_back(getPhysicalDeviceGaugement(status));
 		}
 
+		// then select the greatest out of the gaugements
 		physicalDevice = allPhysicalDevices[getIndexOfGreatest(physicalDeviceGaugements)];
 		if(physicalDevice != VK_NULL_HANDLE) {
 			std::cout << "Selected physical device: ";
@@ -332,7 +371,12 @@ namespace Vulkan {
 	}
 
 	void Backend::createDevice() {
-		VkDeviceQueueCreateInfo graphicsQueuesCreateInfo = getGraphicsQueuesCreateInfo();
+		VkDeviceQueueCreateInfo graphicsQueuesCreateInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = graphicsFamilyIndex,
+			.queueCount = graphicsQueueCount,
+			.pQueuePriorities = graphicsQueuePriorities.data()
+		};
 
 		VkPhysicalDeviceFeatures2 deviceFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
 		VkPhysicalDeviceSynchronization2Features deviceSyncFeaturesStatus{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
@@ -359,16 +403,5 @@ namespace Vulkan {
 		} else {
 			throw std::runtime_error("Logical device creation failure");
 		}
-	}
-
-	VkDeviceQueueCreateInfo Backend::getGraphicsQueuesCreateInfo() {
-		VkDeviceQueueCreateInfo graphicsQueueFamilyInfo = {
-			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-			.queueFamilyIndex = graphicsFamilyIndex,
-			.queueCount = graphicsQueueCount,
-			.pQueuePriorities = graphicsQueuePriorities.data()
-		};
-
-		return graphicsQueueFamilyInfo;
 	}
 }
