@@ -1,93 +1,44 @@
 #pragma once
 
-#include "Swapchain.h"
+#include "Queues.h"
 #include "../../geometry/headers/Vertex.h"
-#include <vulkan/vulkan.h>
-#include <vector>
+#include <tuple>
 
 namespace Vulkan {
-	class Pipeline;
-	class Sync;
-	class Commands;
-	class Engine;
+	struct MemoryCreateInfo {
+		uint32_t bufferCount;
+		VkDeviceSize* pBufferSizes;
+		VkBufferUsageFlags* pBufferUsages;
+		bool* pIsHostVisible;
+	};
 
-	class Memory {
-		friend class Pipeline;
-		friend class Sync;
-		friend class Commands;
-		friend class Engine;
-
-	private:
+	struct Memory {
+	public:
 		bool isSalvagedRemains;
 
-		const uint16_t FLIGHT_COUNT;
+		Queues* queues;
 
-		std::vector<Geometry::Vertex> vertices;
-		std::vector<uint32_t> indices;
-		uint32_t graphicsQueueFamilyIndex;
-		VkMemoryRequirements verticesBufferRequirements;
-		VkDeviceSize verticesBufferOffset;
-		uint32_t verticesBufferSize;
-		VkMemoryRequirements indicesBufferRequirements;
-		VkDeviceSize indicesBufferOffset;
-		uint32_t indicesBufferSize;
-		VkMemoryRequirements stagedVerticesRequirements;
-		VkDeviceSize stagedVerticesOffset;
-		uint32_t stagedVerticesSize;
-		VkMemoryRequirements stagedIndicesRequirements;
-		VkDeviceSize stagedIndicesOffset;
-		uint32_t stagedIndicesSize;
+		// memory and buffers
+		VkDeviceMemory deviceLocalMemory;
+		VkDeviceMemory hostVisibleMemory;
+		std::vector<std::tuple<VkMemoryRequirements, VkDeviceSize, VkDeviceSize, VkBuffer>> buffers_R_O_S_B;
+		std::vector<std::tuple<VkMemoryRequirements, VkDeviceSize, VkDeviceSize, VkBuffer, void*>> mappedBuffers_R_O_S_B_A;
 
-		Swapchain swapchain;
-		VkDeviceMemory stagingMemory;
-		VkDeviceMemory gpuMemory;
-		VkBuffer verticesBuffer;
-		VkBuffer indicesBuffer;
-		VkBuffer stagedVertices;
-		VkBuffer stagedIndices;
+		// setup utility
+		void clean();
 
-		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorPool descriptorPool;
-		std::vector<VkDescriptorSet> descriptorSets;
-		std::vector<VkBuffer> uniformBuffers;
-		std::vector<VkMemoryRequirements> uniformBuffersRequirements;
-		std::vector<VkDeviceSize> uniformBuffersOffsets;
-		std::vector<void*> uniformBuffersAddresses;
-		uint32_t uniformBufferBindingNum;
-		VkDescriptorSetLayoutBinding descriptorSetLayoutBinding;
-
-		void setupBuffersAndMemory();
-		void setupDescriptors();
-
-		void createVerticesBuffer();
-		void createIndicesBuffer();
-		void createUniformBuffers();
-		void createStagedVertices();
-		void createStagedIndices();
-		void allocateGPUMemory();
-		void allocateStagingMemory();
-		void bindUniformBuffersToStagingMemory();
-		void populateVerticesBuffer();
-		void populateIndicesBuffer();
-
-		void mapUniformBuffers();
-		void createDescriptorSetLayout();
-		void createDescriptorPool();
-		void createDescriptorSet();
-		void uniformBuffersToDescriptors();
-
+		// general utility
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
-		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
 		VkDeviceSize calculateAllocationSize(std::vector<VkDeviceSize> bufferSizes, std::vector<VkDeviceSize> alignments, std::vector<VkDeviceSize>& offsetsToSet);
-		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
+		void allocateMemory(VkDeviceMemory& memoryToSet, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
+
+		void createBuffer(VkBuffer& bufferToSet, VkDeviceSize byteSize, VkBufferUsageFlags usage);
 		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning);
 
-	public:
-		Memory(Swapchain&& salvageSwapchain);
+		Memory(Queues* queues, MemoryCreateInfo const& createInfo);
 		Memory(Memory&& salvageMemory);
 		~Memory();
 
-		Memory(Memory const&) = delete;
-		Memory& operator=(Memory const&) = delete;
+		DELETE_COPYING(Memory);
 	};
 }
