@@ -41,13 +41,13 @@ namespace Vulkan {
 
 	descriptorSetLayout{ VK_NULL_HANDLE },
 	descriptorPool{ VK_NULL_HANDLE },
-	descriptorSet{ VK_NULL_HANDLE },
+	descriptorSets(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
 	uniformBuffers(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
 	uniformBuffersRequirements(uniformBuffers.size()),
 	uniformBuffersOffsets(uniformBuffers.size()),
 	uniformBuffersAddresses(uniformBuffers.size()),
-	uniformBuffersBindingNum{ 0 },
-	descriptorSetLayoutBindings{} {
+	uniformBufferBindingNum{ 0 },
+	descriptorSetLayoutBinding{ Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBufferBindingNum, 1) } {
 		std::cout << "---CREATING MEMORY...---\n";
 
 		setupBuffersAndMemory();
@@ -83,13 +83,13 @@ namespace Vulkan {
 
 		descriptorSetLayout{ salvageMemory.descriptorSetLayout },
 		descriptorPool{ salvageMemory.descriptorPool },
-		descriptorSet{ salvageMemory.descriptorSet },
+		descriptorSets{ salvageMemory.descriptorSets },
 		uniformBuffers{ salvageMemory.uniformBuffers },
 		uniformBuffersRequirements{ salvageMemory.uniformBuffersRequirements },
 		uniformBuffersOffsets{ salvageMemory.uniformBuffersOffsets },
 		uniformBuffersAddresses{ salvageMemory.uniformBuffersAddresses },
-		uniformBuffersBindingNum{ salvageMemory.uniformBuffersBindingNum },
-		descriptorSetLayoutBindings{ salvageMemory.descriptorSetLayoutBindings } {
+		uniformBufferBindingNum{ salvageMemory.uniformBufferBindingNum },
+		descriptorSetLayoutBinding{ salvageMemory.descriptorSetLayoutBinding } {
 		salvageMemory.isSalvagedRemains = true;
 
 		salvageMemory.graphicsQueueFamilyIndex = 0xFFFFFFFF;
@@ -113,15 +113,15 @@ namespace Vulkan {
 		salvageMemory.verticesBuffer = VK_NULL_HANDLE;
 		salvageMemory.indicesBuffer = VK_NULL_HANDLE;
 
-		salvageMemory.descriptorSetLayoutBindings = {};
 		salvageMemory.descriptorSetLayout = VK_NULL_HANDLE;
 		salvageMemory.descriptorPool = VK_NULL_HANDLE;
-		salvageMemory.descriptorSet = VK_NULL_HANDLE;
+		salvageMemory.descriptorSets = {};
 		salvageMemory.uniformBuffers = {};
 		salvageMemory.uniformBuffersRequirements = {};
 		salvageMemory.uniformBuffersOffsets = {};
 		salvageMemory.uniformBuffersAddresses = {};
-		salvageMemory.uniformBuffersBindingNum = 0xFFFFFFFF;
+		salvageMemory.uniformBufferBindingNum = 0xFFFFFFFF;
+		salvageMemory.descriptorSetLayoutBinding = {};
 		
 		std::cout << "---MOVED MEMORY---\n";
 	}
@@ -140,7 +140,7 @@ namespace Vulkan {
 			}
 
 			vkDestroyDescriptorSetLayout(swapchain.queues.backend.device, descriptorSetLayout, nullptr);
-			vkFreeDescriptorSets(swapchain.queues.backend.device, descriptorPool, 1, &descriptorSet);
+			vkFreeDescriptorSets(swapchain.queues.backend.device, descriptorPool, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
 			vkDestroyDescriptorPool(swapchain.queues.backend.device, descriptorPool, nullptr);
 
 			vkFreeMemory(swapchain.queues.backend.device, gpuMemory, nullptr);
@@ -156,6 +156,7 @@ namespace Vulkan {
 		createStagedIndices();
 		allocateGPUMemory();
 		allocateStagingMemory();
+		bindUniformBuffersToStagingMemory();
 		populateVerticesBuffer();
 		populateIndicesBuffer();
 	}
@@ -252,6 +253,14 @@ namespace Vulkan {
 		std::cout << "Allocated staging memory with size " << allocationSize << " and memory type " << memoryTypeIndex << '\n';
 	}
 
+	void Memory::bindUniformBuffersToStagingMemory() {
+		for(int i = 0; i < uniformBuffers.size(); i++) {
+			if (vkBindBufferMemory(swapchain.queues.backend.device, uniformBuffers[i], stagingMemory, uniformBuffersOffsets[i]) != VK_SUCCESS) {
+				throw std::runtime_error("Binding uniform buffers to staging memory failure");
+			}
+		}
+	}
+
 	void Memory::populateVerticesBuffer() {
 		vkBindBufferMemory(swapchain.queues.backend.device, stagedVertices, stagingMemory, stagedVerticesOffset);
 		vkBindBufferMemory(swapchain.queues.backend.device, verticesBuffer, gpuMemory, verticesBufferOffset);
@@ -282,7 +291,6 @@ namespace Vulkan {
 
 	void Memory::setupDescriptors() {
 		mapUniformBuffers();
-		createDescriptorSetBindings();
 		createDescriptorSetLayout();
 		createDescriptorPool();
 		createDescriptorSet();
@@ -292,11 +300,8 @@ namespace Vulkan {
 	void Memory::mapUniformBuffers() {
 		for(int i = 0; i < uniformBuffers.size(); i++) {
 			vkMapMemory(swapchain.queues.backend.device, stagingMemory, uniformBuffersOffsets[i], sizeof(Geometry::Transformation), 0, &uniformBuffersAddresses[i]);
+			vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
 		}
-	}
-
-	void Memory::createDescriptorSetBindings() {
-		descriptorSetLayoutBindings = { Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBuffersBindingNum, uniformBuffers.size()) };
 	}
 
 	void Memory::createDescriptorSetLayout() {
@@ -304,8 +309,8 @@ namespace Vulkan {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
-			.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size()),
-			.pBindings = descriptorSetLayoutBindings.data()
+			.bindingCount = 1,
+			.pBindings = &descriptorSetLayoutBinding
 		};
 
 		if(vkCreateDescriptorSetLayout(swapchain.queues.backend.device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) == VK_SUCCESS) {
@@ -318,14 +323,14 @@ namespace Vulkan {
 	void Memory::createDescriptorPool() {
 		VkDescriptorPoolSize uniformBufferDescriptors = {
 			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			.descriptorCount = descriptorSetLayoutBindings[0].descriptorCount
+			.descriptorCount = static_cast<uint32_t>(uniformBuffers.size())
 		};
 
 		VkDescriptorPoolCreateInfo descriptorPoolInfo = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-			.maxSets = 1,
+			.maxSets = static_cast<uint32_t>(uniformBuffers.size()),
 			.poolSizeCount = 1,
 			.pPoolSizes = &uniformBufferDescriptors
 		};
@@ -338,48 +343,45 @@ namespace Vulkan {
 	}
 
 	void Memory::createDescriptorSet() {
+		std::vector<VkDescriptorSetLayout> layoutsDuplicated(uniformBuffers.size(), descriptorSetLayout);
 		VkDescriptorSetAllocateInfo descriptorSetInfo = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.pNext = nullptr,
 			.descriptorPool = descriptorPool,
-			.descriptorSetCount = 1,
-			.pSetLayouts = &descriptorSetLayout
+			.descriptorSetCount = static_cast<uint32_t>(uniformBuffers.size()),
+			.pSetLayouts = layoutsDuplicated.data()
 		};
 
-		if(vkAllocateDescriptorSets(swapchain.queues.backend.device, &descriptorSetInfo, &descriptorSet) == VK_SUCCESS) {
-			std::cout << "Descriptor set created\n";
+		if(vkAllocateDescriptorSets(swapchain.queues.backend.device, &descriptorSetInfo, descriptorSets.data()) == VK_SUCCESS) {
+			std::cout << "Descriptor sets created\n";
 		} else {
-			throw std::runtime_error("Descriptor set creation failure");
+			throw std::runtime_error("Descriptor sets creation failure");
 		}
 	}
 
 	void Memory::uniformBuffersToDescriptors() {
-		std::vector<VkDescriptorBufferInfo> uniformBuffersInfo{};
-		
 		for(int i = 0; i < uniformBuffers.size(); i++) {
-			VkDescriptorBufferInfo singleUniformBufferInfo = {
+			VkDescriptorBufferInfo bufferInfo = {
 				.buffer = uniformBuffers[i],
 				.offset = 0,
 				.range = VK_WHOLE_SIZE
 			};
 
-			uniformBuffersInfo.push_back(singleUniformBufferInfo);
+			VkWriteDescriptorSet writeInfo = {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.pNext = nullptr,
+				.dstSet = descriptorSets[i],
+				.dstBinding = uniformBufferBindingNum,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.pImageInfo = nullptr,
+				.pBufferInfo = &bufferInfo,
+				.pTexelBufferView = nullptr
+			};
+
+			vkUpdateDescriptorSets(swapchain.queues.backend.device, 1, &writeInfo, 0, nullptr);
 		}
-
-		VkWriteDescriptorSet writeInfo = {
-			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.pNext = nullptr,
-			.dstSet = descriptorSet,
-			.dstBinding = uniformBuffersBindingNum,
-			.dstArrayElement = 0,
-			.descriptorCount = static_cast<uint32_t>(uniformBuffers.size()),
-			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			.pImageInfo = nullptr,
-			.pBufferInfo = uniformBuffersInfo.data(),
-			.pTexelBufferView = nullptr
-		};
-
-		vkUpdateDescriptorSets(swapchain.queues.backend.device, 1, &writeInfo, 0, nullptr);
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
