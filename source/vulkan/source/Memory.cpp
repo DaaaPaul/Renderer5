@@ -385,7 +385,7 @@ namespace Vulkan {
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
-		VkPhysicalDeviceMemoryProperties2 memoryProperties{
+		VkPhysicalDeviceMemoryProperties2 memoryProperties = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2
 		};
 		vkGetPhysicalDeviceMemoryProperties2(swapchain.queues.backend.physicalDevice, &memoryProperties);

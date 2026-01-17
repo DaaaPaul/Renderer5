@@ -8,10 +8,19 @@ struct VertexOut {
     float4 col;
 };
 
+struct Transformation {
+    float4x4 model;
+    float4x4 view;
+    float4x4 projection;
+};
+
+[[vk::binding(0, 0)]]
+ConstantBuffer<Transformation> transformation;
+
 [shader("vertex")]
 VertexOut vertexShader(VertexIn given) {
     VertexOut final;
-    final.pos = given.pos;
+    final.pos = mul(transformation.projection, mul(transformation.view, mul(transformation.model, given.pos)));
     final.col = given.col;
 
     return final;

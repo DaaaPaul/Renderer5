@@ -1,6 +1,9 @@
 #include "../headers/Engine.h"
+#include "../../geometry/headers/Transformation.h"
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <climits>
+#include <chrono>
 
 #define BACKEND commands.sync.pipeline.memory.swapchain.queues.backend
 
@@ -72,8 +75,9 @@ namespace Vulkan {
 			.signalSemaphoreCount = 1,
 			.pSignalSemaphores = &commands.sync.imageFinished[queueIndex][flightIndex],
 		};
-
 		record(commands.sync.pipeline.memory.swapchain.images[imageIndex], commands.sync.pipeline.memory.swapchain.imageViews[imageIndex]);
+		writeUniformBuffer();
+
 		vkQueueSubmit(queue, 1, &drawSubmit, commands.sync.commandBufferFinished[queueIndex][flightIndex]);
 
 		VkPresentInfoKHR presentInfo = {
@@ -89,6 +93,27 @@ namespace Vulkan {
 		vkQueuePresentKHR(queue, &presentInfo);
 
 		queueIndex = (queueIndex + 1) % GRAPHICS_QUEUE_COUNT;
+	}
+
+	void Engine::writeUniformBuffer() {
+		static auto loadTime = std::chrono::high_resolution_clock::now();
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float timeSinceLoad = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - loadTime).count();
+
+		Geometry::Transformation transformation = {
+			.model = glm::rotate(glm::mat4(1.0f), timeSinceLoad * glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
+			.view = glm::lookAt(glm::vec3(0.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
+			.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.height), 0.1f, 10.0f)
+		};
+		transformation.projection[1][1] *= -1.0f;
+
+		uint16_t conversion = 0;
+		conversion += flightIndex;
+		if(queueIndex == 1) {
+			conversion += queueIndex * 3;
+		}
+
+		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[conversion], &transformation, sizeof(Geometry::Transformation));
 	}
 
 	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {
@@ -161,6 +186,12 @@ namespace Vulkan {
 		VkDeviceSize offset = 0;
 		vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &commands.sync.pipeline.memory.verticesBuffer, &offset);
 		vkCmdBindIndexBuffer(targetCommandBuffer, commands.sync.pipeline.memory.indicesBuffer, offset, VK_INDEX_TYPE_UINT32);
+		uint16_t conversion = 0;
+		conversion += flightIndex;
+		if (queueIndex == 1) {
+			conversion += queueIndex * 3;
+		}
+		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 1, &commands.sync.pipeline.memory.descriptorSets[conversion], 0, nullptr);
 		vkCmdDrawIndexed(targetCommandBuffer, commands.sync.pipeline.memory.indices.size(), 1, 0, 0, 0);
 		vkCmdEndRendering(targetCommandBuffer);
 

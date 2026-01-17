@@ -20,6 +20,7 @@ namespace Vulkan {
 		void queuesDrawFrame();
 		void renderAndPresent(VkQueue& queue);
 
+		void writeUniformBuffer();
 		void record(VkImage& image, VkImageView& colorAttachmentImageView);
 		void insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
 	public:
