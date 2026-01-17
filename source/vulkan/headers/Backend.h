@@ -1,9 +1,6 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <vector>
-#include <array>
+#include "../Hashtag.h"
 
 namespace Vulkan {
 	class Queues;
@@ -72,8 +69,7 @@ namespace Vulkan {
 		Backend(Backend&& salvageBackend);
 		~Backend();
 
-		Backend(Backend const&) = delete;
-		Backend& operator=(Backend const&) = delete;
+		DELETE_COPYING(Backend);
 	};
 }
 

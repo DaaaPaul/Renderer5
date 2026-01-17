@@ -1,8 +1,4 @@
 #include "../headers/Backend.h"
-#include <stdexcept>
-#include <iostream>
-#include <vector>
-#include <array>
 
 namespace Vulkan {
 	Backend::Backend() : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {

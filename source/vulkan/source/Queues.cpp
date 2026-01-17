@@ -2,19 +2,24 @@
 #include <iostream>
 
 namespace Vulkan {
-	Queues::Queues(Backend&& salvageBackend) : backend(std::move(salvageBackend)), graphicsQueues(backend.graphicsQueueCount) {
+	Queues::Queues(Backend&& salvageBackend) : backend(std::move(salvageBackend)), graphicsQueues(backend.graphicsQueueCount), graphicsQueueCount{ backend.graphicsQueueCount } {
 		std::cout << "---CREATING QUEUES...---\n";
 		
-		createGraphicsQueues();
+		setupQueues();
 	}
 
-	Queues::Queues(Queues&& salvageQueues) : backend(std::move(salvageQueues.backend)), graphicsQueues(salvageQueues.graphicsQueues.size()) {
+	Queues::Queues(Queues&& salvageQueues) : backend(std::move(salvageQueues.backend)), graphicsQueues(salvageQueues.graphicsQueues.size()), graphicsQueueCount{ salvageQueues.graphicsQueueCount } {
+		std::cout << "---MOVING QUEUES...---\n";
+		
 		for(int i = 0; i < salvageQueues.graphicsQueues.size(); i++) {
 			graphicsQueues[i] = salvageQueues.graphicsQueues[i];
-			salvageQueues.graphicsQueues[i] = VK_NULL_HANDLE;
+			salvageQueues.graphicsQueues[i] = {};
 		}
+		salvageQueues.graphicsQueueCount = {};
+	}
 
-		std::cout << "---MOVED QUEUES...---\n";
+	void Queues::setupQueues() {
+		createGraphicsQueues();
 	}
 
 	void Queues::createGraphicsQueues() {

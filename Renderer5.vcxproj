@@ -99,6 +99,7 @@
     <ClCompile Include="source\geometry\source\Transformation.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\vulkan\Hashtag.h" />
     <ClInclude Include="source\vulkan\headers\Queues.h" />
     <ClInclude Include="source\vulkan\headers\Commands.h" />
     <ClInclude Include="source\vulkan\headers\Engine.h" />

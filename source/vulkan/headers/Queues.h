@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Backend.h"
-#include <vulkan/vulkan.h>
-#include <vector>
 
 namespace Vulkan {
 	class Swapchain;
@@ -21,16 +19,20 @@ namespace Vulkan {
 		friend class Engine;
 
 	private:
+		// vulkan objects
 		Backend backend;
 		std::vector<VkQueue> graphicsQueues;
+		uint16_t graphicsQueueCount;
+
+		// create vulkan objects
+		void setupQueues();
 
 		void createGraphicsQueues();
 	public:
 		Queues(Backend&& salvageBackend);
 		Queues(Queues&& salvageQueues);
 
-		Queues(Queues const&) = delete;
-		Queues& operator=(Queues const&) = delete;
+		DELETE_COPYING(Queues);
 	};
 }
 
