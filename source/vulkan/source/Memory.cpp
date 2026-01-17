@@ -17,7 +17,7 @@ namespace Vulkan {
 		0, 1, 2,
 		0, 2, 3
 	},
-	graphicsQueueFamilyIndex{ swapchain.graphicsQueueFamilyIndex },
+	graphicsQueueFamilyIndex{ swapchain.queues.backend.graphicsFamilyIndex },
 	verticesBufferRequirements{},
 	verticesBufferOffset{},
 	verticesBufferSize{ static_cast<uint32_t>(sizeof(vertices[0]) * vertices.size()) },

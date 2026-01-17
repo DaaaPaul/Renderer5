@@ -2,104 +2,122 @@
 #include <iostream>
 
 namespace Vulkan {
-	Swapchain::Swapchain(Queues&& salvageQueues) : 
-		isSalvagedRemains{ false }, 
-		wantedImageCount{ 6 }, 
-		realImageCount{ 0xFFFFFFFF },
-		imageFormat{ VK_FORMAT_R8G8B8A8_SRGB },
-		imageColorspace{ VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
-		imageExtent{  },
-		imageUsage{ VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT },
-		imageSharingMode{ VK_SHARING_MODE_EXCLUSIVE },
-		graphicsQueueFamilyIndex{ queues.backend.graphicsFamilyIndex }, 
-		preTransform{ VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR },
-		presentMode{ VK_PRESENT_MODE_MAILBOX_KHR },
-		imageViewAspect{ VK_IMAGE_ASPECT_COLOR_BIT },
-		queues(std::move(salvageQueues)), swapchain{ VK_NULL_HANDLE }, images{}, imageViews{} {
+	Swapchain::Swapchain(Queues&& salvageQueues) : isSalvagedRemains{}, swapchainInfo{}, queues(std::move(salvageQueues)), swapchain{}, images{}, imageViews{} {
 		std::cout << "---CREATING SWAPCHAIN...---\n";
 
-		initImageExtent();
-		createSwapchain();
-		createImages();
-		createImageViews();
+		setupInformationParameters();
+		setupSwapchainAndImageStuff();
 	}
 
 	Swapchain::~Swapchain() {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING SWAPCHAIN...---\n";
 
-			vkDestroySwapchainKHR(queues.backend.device, swapchain, nullptr);
-			for (VkImageView& imageView : imageViews) {
-				vkDestroyImageView(queues.backend.device, imageView, nullptr);
+			clean();
+		}
+	}
+
+	Swapchain::Swapchain(Swapchain&& salvageSwapchain) : isSalvagedRemains{}, swapchainInfo{}, queues(std::move(salvageSwapchain.queues)), swapchain{}, images{}, imageViews{} {
+		std::cout << "---MOVING SWAPCHAIN...---\n";
+
+		isSalvagedRemains = false;
+
+		takeEverything(std::move(salvageSwapchain));
+		salvageSwapchain.salvageSelf();
+	}
+
+	void Swapchain::clean() {
+		vkDestroySwapchainKHR(queues.backend.device, swapchain, nullptr);
+		for (VkImageView& imageView : imageViews) {
+			vkDestroyImageView(queues.backend.device, imageView, nullptr);
+		}
+	}
+
+	void Swapchain::takeEverything(Swapchain&& salvageSwapchain) {
+		swapchainInfo = salvageSwapchain.swapchainInfo;
+		swapchain = salvageSwapchain.swapchain;
+		images = salvageSwapchain.images;
+		imageViews = salvageSwapchain.imageViews;
+	}
+
+	void Swapchain::salvageSelf() {
+		isSalvagedRemains = true;
+
+		swapchainInfo = {};
+		swapchain = VK_NULL_HANDLE;
+
+		for (int i = 0; i < images.size(); i++) {
+			images[i] = VK_NULL_HANDLE;
+			imageViews[i] = VK_NULL_HANDLE;
+		}
+	}
+
+	void Swapchain::setupInformationParameters() {
+		// known at construction
+		isSalvagedRemains = false;
+
+		swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		swapchainInfo.pNext = nullptr;
+		swapchainInfo.flags = 0;
+		swapchainInfo.surface = queues.backend.surface;
+		swapchainInfo.minImageCount = 6;
+		swapchainInfo.imageFormat = getImageFormat().format;
+		swapchainInfo.imageColorSpace = getImageFormat().colorSpace;
+		swapchainInfo.imageExtent = getImageExtent();
+		swapchainInfo.imageArrayLayers = 1;
+		swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchainInfo.queueFamilyIndexCount = 1;
+		swapchainInfo.pQueueFamilyIndices = &queues.backend.graphicsFamilyIndex;
+		swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+		swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+		swapchainInfo.presentMode = getPresentMode();
+		swapchainInfo.clipped = true;
+		swapchainInfo.oldSwapchain = nullptr;
+
+		// unknown - populates later
+		images = {};
+		imagesCount = {};
+	}
+
+	VkSurfaceFormatKHR Swapchain::getImageFormat() {
+		VkSurfaceFormatKHR desiredFormat = {
+			.format = VK_FORMAT_R8G8B8A8_SRGB,
+			.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+		};
+		bool foundDesiredFormat = false;
+
+		uint32_t supportedSurfaceFormatsCount{};
+		vkGetPhysicalDeviceSurfaceFormatsKHR(queues.backend.physicalDevice, queues.backend.surface, &supportedSurfaceFormatsCount, nullptr);
+		std::vector<VkSurfaceFormatKHR> supportedSurfaceFormats(supportedSurfaceFormatsCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(queues.backend.physicalDevice, queues.backend.surface, &supportedSurfaceFormatsCount, supportedSurfaceFormats.data());
+
+		for(int i = 0; i < supportedSurfaceFormats.size(); i++) {
+			if(supportedSurfaceFormats[i].format == desiredFormat.format && supportedSurfaceFormats[i].colorSpace == desiredFormat.colorSpace) {
+				foundDesiredFormat = true;
 			}
 		}
-	}
 
-	Swapchain::Swapchain(Swapchain&& salvageSwapchain) : 
-		isSalvagedRemains{ false },
-		wantedImageCount{ salvageSwapchain.wantedImageCount },
-		realImageCount{ salvageSwapchain.realImageCount },
-		imageFormat{ salvageSwapchain.imageFormat },
-		imageColorspace{ salvageSwapchain.imageColorspace },
-		imageExtent{ salvageSwapchain.imageExtent },
-		imageUsage{ salvageSwapchain.imageUsage },
-		imageSharingMode{ salvageSwapchain.imageSharingMode },
-		graphicsQueueFamilyIndex{ salvageSwapchain.graphicsQueueFamilyIndex },
-		preTransform{ salvageSwapchain.preTransform },
-		presentMode{ salvageSwapchain.presentMode },
-		imageViewAspect{ salvageSwapchain.imageViewAspect },
-		queues(std::move(salvageSwapchain.queues)), swapchain{ salvageSwapchain.swapchain }, images{ salvageSwapchain.images }, imageViews{ salvageSwapchain.imageViews } {
-		salvageSwapchain.isSalvagedRemains = true;
-
-		salvageSwapchain.swapchain = VK_NULL_HANDLE;
-		for(int i = 0; i < salvageSwapchain.imageViews.size(); i++) {
-			salvageSwapchain.images[i] = VK_NULL_HANDLE;
-			salvageSwapchain.imageViews[i] = VK_NULL_HANDLE;
-		}
-
-		std::cout << "---MOVED SWAPCHAIN---\n";
-	}
-
-	void Swapchain::createSwapchain() {
-		VkSwapchainCreateInfoKHR swapchainInfo = {
-			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-			.pNext = nullptr,
-			.flags = 0,
-			.surface = queues.backend.surface,
-			.minImageCount = wantedImageCount,
-			.imageFormat = imageFormat,
-			.imageColorSpace = imageColorspace,
-			.imageExtent = imageExtent,
-			.imageArrayLayers = 1,
-			.imageUsage = imageUsage,
-			.imageSharingMode = imageSharingMode,
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &graphicsQueueFamilyIndex,
-			.preTransform = preTransform,
-			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-			.presentMode = presentMode,
-			.clipped = true,
-			.oldSwapchain = VK_NULL_HANDLE
-		};
-
-		if(vkCreateSwapchainKHR(queues.backend.device, &swapchainInfo, nullptr, &swapchain) == VK_SUCCESS) {
-			std::cout << "Vulkan swapchain created\n";
+		if(!foundDesiredFormat) {
+			throw std::runtime_error("Didn't find desired format to use for swapchain");
 		} else {
-			throw std::runtime_error("Vulkan swapchain creation failure");
+			return desiredFormat;
 		}
 	}
 
-	void Swapchain::initImageExtent() {
+	VkExtent2D Swapchain::getImageExtent() {
+		VkExtent2D imageExtent{};
+
 		VkSurfaceCapabilitiesKHR surfaceCapabilities{};
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(queues.backend.physicalDevice, queues.backend.surface, &surfaceCapabilities);
 
-		if(surfaceCapabilities.currentExtent.width != 0xFFFFFFFF) {
+		if (surfaceCapabilities.currentExtent.width != 0xFFFFFFFF) {
 			imageExtent = surfaceCapabilities.currentExtent;
 		} else {
 			int realWidth = 0, realHeight = 0;
 			glfwGetFramebufferSize(queues.backend.window, &realHeight, &realHeight);
 
-			if(realWidth > surfaceCapabilities.maxImageExtent.width || realHeight > surfaceCapabilities.maxImageExtent.height) {
+			if (realWidth > surfaceCapabilities.maxImageExtent.width || realHeight > surfaceCapabilities.maxImageExtent.height) {
 				throw std::runtime_error("Vulkan swapchain does not support proper image size rendering\n");
 			} else {
 				imageExtent.width = realWidth;
@@ -108,17 +126,55 @@ namespace Vulkan {
 		}
 
 		std::cout << "Swapchain/window/surface extent set: " << imageExtent.width << "x" << imageExtent.height << '\n';
+
+		return imageExtent;
 	}
 
-	void Swapchain::createImages() {
-		vkGetSwapchainImagesKHR(queues.backend.device, swapchain, &realImageCount, nullptr);
-		images.resize(realImageCount, VK_NULL_HANDLE);
-		vkGetSwapchainImagesKHR(queues.backend.device, swapchain, &realImageCount, images.data());
+	VkPresentModeKHR Swapchain::getPresentMode() {
+		VkPresentModeKHR desiredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+		bool foundDesiredPresentMode = false;
 
-		std::cout << "Created " << realImageCount << " images for the swapchain\n";
+		uint32_t supportedPresentModesCount{};
+		vkGetPhysicalDeviceSurfacePresentModesKHR(queues.backend.physicalDevice, queues.backend.surface, &supportedPresentModesCount, nullptr);
+		std::vector<VkPresentModeKHR> supportedSurfacePresentModes(supportedPresentModesCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(queues.backend.physicalDevice, queues.backend.surface, &supportedPresentModesCount, supportedSurfacePresentModes.data());
+
+		for (int i = 0; i < supportedSurfacePresentModes.size(); i++) {
+			if (supportedSurfacePresentModes[i] == desiredPresentMode) {
+				foundDesiredPresentMode = true;
+			}
+		}
+
+		if (!foundDesiredPresentMode) {
+			throw std::runtime_error("Didn't find desired present mode to use for swapchain");
+		} else {
+			return desiredPresentMode;
+		}
 	}
 
-	void Swapchain::createImageViews() {
+	void Swapchain::setupSwapchainAndImageStuff() {
+		createSwapchain();
+		populateImages();
+		createImageViews(VK_IMAGE_ASPECT_COLOR_BIT);
+	}
+
+	void Swapchain::createSwapchain() {
+		if(vkCreateSwapchainKHR(queues.backend.device, &swapchainInfo, nullptr, &swapchain) == VK_SUCCESS) {
+			std::cout << "Vulkan swapchain created\n";
+		} else {
+			throw std::runtime_error("Vulkan swapchain creation failure");
+		}
+	}
+
+	void Swapchain::populateImages() {
+		vkGetSwapchainImagesKHR(queues.backend.device, swapchain, &imagesCount, nullptr);
+		images.resize(imagesCount, VK_NULL_HANDLE);
+		vkGetSwapchainImagesKHR(queues.backend.device, swapchain, &imagesCount, images.data());
+
+		std::cout << "Created " << imagesCount << " images for the swapchain\n";
+	}
+
+	void Swapchain::createImageViews(VkImageAspectFlags aspectBits) {
 		imageViews.resize(images.size(), VK_NULL_HANDLE);
 
 		VkImageViewCreateInfo imageViewRollingInfo = {
@@ -127,8 +183,8 @@ namespace Vulkan {
 			.flags = 0,
 			.image = VK_NULL_HANDLE,
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = imageFormat,
-			.subresourceRange = VkImageSubresourceRange(imageViewAspect, 0, 1, 0, 1)
+			.format = swapchainInfo.imageFormat,
+			.subresourceRange = VkImageSubresourceRange(aspectBits, 0, 1, 0, 1)
 		};
 		
 		for(int i = 0; i < images.size(); i++) {
@@ -136,6 +192,6 @@ namespace Vulkan {
 			vkCreateImageView(queues.backend.device, &imageViewRollingInfo, nullptr, &imageViews[i]);
 		}
 
-		std::cout << "Created " << imageViews.size() << " image views with aspect " << imageViewAspect << '\n';
+		std::cout << "Created " << imageViews.size() << " image views with aspect(s) " << aspectBits << '\n';
 	}
 }

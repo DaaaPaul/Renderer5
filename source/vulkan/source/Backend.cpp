@@ -11,6 +11,8 @@ namespace Vulkan {
 	Backend::Backend(Backend&& salvageBackend) : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
 		std::cout << "---MOVING BACKEND...---\n";
 
+		isSalvagedRemains = false;
+
 		takeEverything(std::move(salvageBackend));
 		salvageBackend.salvageSelf();
 	}
@@ -47,8 +49,6 @@ namespace Vulkan {
 	}
 
 	void Backend::takeEverything(Backend&& salvageBackend) {
-		isSalvagedRemains = false;
-
 		validationLayersEnabled = salvageBackend.validationLayersEnabled;
 		validationLayers = salvageBackend.validationLayers;
 		apiVersion = salvageBackend.apiVersion;

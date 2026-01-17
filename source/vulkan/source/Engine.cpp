@@ -103,7 +103,7 @@ namespace Vulkan {
 		Geometry::Transformation transformation = {
 			.model = glm::rotate(glm::mat4(1.0f), timeSinceLoad * glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
 			.view = glm::lookAt(glm::vec3(0.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
-			.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.height), 0.1f, 10.0f)
+			.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 10.0f)
 		};
 		transformation.projection[1][1] *= -1.0f;
 
@@ -147,7 +147,7 @@ namespace Vulkan {
 
 		VkRect2D scissor = {
 			.offset = VkOffset2D(0, 0),
-			.extent = commands.sync.pipeline.memory.swapchain.imageExtent
+			.extent = commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent
 		};
 
 		VkRenderingInfo renderingInfo = {
@@ -166,8 +166,8 @@ namespace Vulkan {
 		VkViewport viewport = {
 			.x = 0.0f,
 			.y = 0.0f,
-			.width = static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.width),
-			.height = static_cast<float>(commands.sync.pipeline.memory.swapchain.imageExtent.height),
+			.width = static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width),
+			.height = static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height),
 			.minDepth = 0.0f,
 			.maxDepth = 1.0f
 		};

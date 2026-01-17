@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Queues.h"
-#include <vulkan/vulkan.h>
-#include <vector>
 
 namespace Vulkan {
 	class Memory;
@@ -21,36 +19,37 @@ namespace Vulkan {
 	private:
 		bool isSalvagedRemains;
 
-		uint32_t wantedImageCount;
-		uint32_t realImageCount;
-		VkFormat imageFormat;
-		VkColorSpaceKHR imageColorspace;
-		VkExtent2D imageExtent;
-		VkImageUsageFlags imageUsage;
-		VkSharingMode imageSharingMode;
-		uint32_t graphicsQueueFamilyIndex;
-		VkSurfaceTransformFlagBitsKHR preTransform;
-		VkPresentModeKHR presentMode;
+		// information parameters
+		VkSwapchainCreateInfoKHR swapchainInfo;
+		std::vector<VkImage> images;
+		uint32_t imagesCount;
 
-		VkImageAspectFlags imageViewAspect;
-
+		// vulkan objects
 		Queues queues;
 		VkSwapchainKHR swapchain;
-		std::vector<VkImage> images;
 		std::vector<VkImageView> imageViews;
 
-		void createSwapchain();
-		void createImages();
-		void createImageViews();
+		// utility
+		void clean();
+		void setupInformationParameters();
+		void takeEverything(Swapchain&& salvageSwapchain);
+		void salvageSelf();
 
-		void initImageExtent();
+		// create vulkan objects
+		void setupSwapchainAndImageStuff();
+		void createSwapchain();
+		void populateImages();
+		void createImageViews(VkImageAspectFlags aspectBits);
+
+		VkSurfaceFormatKHR getImageFormat();
+		VkExtent2D getImageExtent();
+		VkPresentModeKHR getPresentMode();
 	public:
 		Swapchain(Queues&& salvageQueues);
 		Swapchain(Swapchain&& salvageSwapchain);
 		~Swapchain();
 
-		Swapchain(Swapchain const&) = delete;
-		Swapchain& operator=(Swapchain const&) = delete;
+		DELETE_COPYING(Swapchain);
 	};
 }
 
