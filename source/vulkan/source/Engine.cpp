@@ -76,6 +76,7 @@ namespace Vulkan {
 			.pSignalSemaphores = &commands.sync.imageFinished[queueIndex][flightIndex],
 		};
 		record(commands.sync.pipeline.memory.swapchain.images[imageIndex], commands.sync.pipeline.memory.swapchain.imageViews[imageIndex]);
+		reactToInput();
 		writeUniformBuffer();
 
 		vkQueueSubmit(queue, 1, &drawSubmit, commands.sync.commandBufferFinished[queueIndex][flightIndex]);
@@ -95,19 +96,33 @@ namespace Vulkan {
 		queueIndex = (queueIndex + 1) % GRAPHICS_QUEUE_COUNT;
 	}
 
+	void Engine::reactToInput() {
+		if (glfwGetKey(BACKEND.window, GLFW_KEY_W) == GLFW_PRESS) {
+			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_S) == GLFW_PRESS) {
+			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_A) == GLFW_PRESS) {
+			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_D) == GLFW_PRESS) {
+			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+		} else {
+			currentTransformation.model = glm::mat4(1.0f);
+		}
+	}
+
 	void Engine::writeUniformBuffer() {
 		const static std::chrono::steady_clock::time_point FIRST_CALL_TIME = std::chrono::high_resolution_clock::now();
 		std::chrono::steady_clock::time_point thisCallTime = std::chrono::high_resolution_clock::now();
 		float timeSinceLoad = std::chrono::duration<float, std::chrono::seconds::period>(thisCallTime - FIRST_CALL_TIME).count();
 
-		Geometry::Transformation transformation = {
-			.model = glm::rotate(glm::mat4(1.0f), timeSinceLoad * glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
-			.view = glm::lookAt(glm::vec3(0.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
-			.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 10.0f)
-		};
-		transformation.projection[1][1] *= -1.0f;
+		glm::mat4 updatedModelMatrix = currentTransformation.model;
 
-		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[convertDoubleToSingleIndex(queueIndex, flightIndex)], &transformation, sizeof(Geometry::Transformation));
+		currentTransformation.model = glm::rotate(updatedModelMatrix, timeSinceLoad * glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 3.0f, 0.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 10.0f);
+		currentTransformation.projection[1][1] *= -1.0f;
+
+		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[convertDoubleToSingleIndex(queueIndex, flightIndex)], &currentTransformation, sizeof(Geometry::Transformation));
 	}
 
 	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {

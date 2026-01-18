@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../headers/Commands.h"
+#include "../../geometry/headers/Transformation.h"
 #include <vulkan/vulkan.h>
 #include <vector>
 
@@ -12,6 +13,7 @@ namespace Vulkan {
 		uint16_t queueIndex;
 		uint16_t flightIndex;
 		VkClearColorValue clearColor;
+		Geometry::Transformation currentTransformation;
 
 		uint16_t framesLastSecond;
 
@@ -20,6 +22,7 @@ namespace Vulkan {
 		void queuesDrawFrame();
 		void renderAndPresent(VkQueue& queue);
 
+		void reactToInput();
 		void writeUniformBuffer();
 		void record(VkImage& image, VkImageView& colorAttachmentImageView);
 		void insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
