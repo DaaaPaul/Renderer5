@@ -98,13 +98,13 @@ namespace Vulkan {
 
 	void Engine::reactToInput() {
 		if (glfwGetKey(BACKEND.window, GLFW_KEY_W) == GLFW_PRESS) {
-			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_S) == GLFW_PRESS) {
 			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_S) == GLFW_PRESS) {
+			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_A) == GLFW_PRESS) {
-			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_D) == GLFW_PRESS) {
 			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_D) == GLFW_PRESS) {
+			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 		} else {
 			currentTransformation.model = glm::mat4(1.0f);
 		}
@@ -195,7 +195,13 @@ namespace Vulkan {
 		VkDeviceSize offset = 0;
 		vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &commands.sync.pipeline.memory.verticesBuffer, &offset);
 		vkCmdBindIndexBuffer(targetCommandBuffer, commands.sync.pipeline.memory.indicesBuffer, offset, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 1, &commands.sync.pipeline.memory.descriptorSets[convertDoubleToSingleIndex(queueIndex, flightIndex)], 0, nullptr);
+
+		std::vector<VkDescriptorSet> descriptorSets =
+		{ commands.sync.pipeline.memory.u_descriptorSets[convertDoubleToSingleIndex(queueIndex, flightIndex)],
+		  commands.sync.pipeline.memory.t_descriptorSets[convertDoubleToSingleIndex(queueIndex, flightIndex)]
+		};
+
+		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 2, descriptorSets.data(), 0, nullptr);
 		vkCmdDrawIndexed(targetCommandBuffer, commands.sync.pipeline.memory.indices.size(), 1, 0, 0, 0);
 		vkCmdEndRendering(targetCommandBuffer);
 

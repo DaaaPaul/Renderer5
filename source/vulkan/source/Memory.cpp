@@ -10,10 +10,10 @@ namespace Vulkan {
 	isSalvagedRemains{ false },
 	FLIGHT_COUNT{ 3 },
 	vertices{ 
-		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f))
+		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)),
+		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f)),
+		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f)),
+		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 1.0f))
 	},
 	indices{
 		0, 1, 2,
@@ -41,15 +41,15 @@ namespace Vulkan {
 	stagedVertices{ VK_NULL_HANDLE },
 	stagedIndices{ VK_NULL_HANDLE },
 
-	descriptorSetLayout{ VK_NULL_HANDLE },
-	descriptorPool{ VK_NULL_HANDLE },
-	descriptorSets(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
+	u_descriptorSetLayout{ VK_NULL_HANDLE },
+	u_descriptorPool{ VK_NULL_HANDLE },
+	u_descriptorSets(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
+	u_descriptorSetLayoutBinding{ Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBufferBindingNum, 1) },
 	uniformBuffers(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
 	uniformBuffersRequirements(uniformBuffers.size()),
 	uniformBuffersOffsets(uniformBuffers.size()),
 	uniformBuffersAddresses(uniformBuffers.size()),
 	uniformBufferBindingNum{ 0 },
-	descriptorSetLayoutBinding{ Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBufferBindingNum, 1) },
 
 	textureAddress{},
 	textureWidth{},
@@ -59,15 +59,25 @@ namespace Vulkan {
 	stagedTextureRequirements{},
 	stagedTextureOffset{},
 	textureImage{},
+	textureImageView{},
 	textureImageRequirements{},
-	textureImageOffset{}
+	textureImageOffset{},
+
+	textureSampler{},
+	t_descriptorSetLayout{},
+	t_descriptorPool{},
+	t_descriptorSets(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
+	t_descriptorSetLayoutBinding{}
 	{
 		std::cout << "---CREATING MEMORY...---\n";
 		
 		loadTexture();
 		createTextureImage();
+		createTextureImageView();
 		setupBuffersAndMemory();
-		setupDescriptors();
+		setup_u_Descriptors();
+		setupSampler();
+		setup_t_Descriptors();
 	}
 
 	Memory::Memory(Memory&& salvageMemory) :
@@ -97,15 +107,15 @@ namespace Vulkan {
 		stagedVertices{ salvageMemory.stagedVertices },
 		stagedIndices{ salvageMemory.stagedIndices },
 
-		descriptorSetLayout{ salvageMemory.descriptorSetLayout },
-		descriptorPool{ salvageMemory.descriptorPool },
-		descriptorSets{ salvageMemory.descriptorSets },
+		u_descriptorSetLayout{ salvageMemory.u_descriptorSetLayout },
+		u_descriptorPool{ salvageMemory.u_descriptorPool },
+		u_descriptorSets{ salvageMemory.u_descriptorSets },
+		u_descriptorSetLayoutBinding{ salvageMemory.u_descriptorSetLayoutBinding },
 		uniformBuffers{ salvageMemory.uniformBuffers },
 		uniformBuffersRequirements{ salvageMemory.uniformBuffersRequirements },
 		uniformBuffersOffsets{ salvageMemory.uniformBuffersOffsets },
 		uniformBuffersAddresses{ salvageMemory.uniformBuffersAddresses },
 		uniformBufferBindingNum{ salvageMemory.uniformBufferBindingNum },
-		descriptorSetLayoutBinding{ salvageMemory.descriptorSetLayoutBinding },
 	
 		textureAddress{ salvageMemory.textureAddress },
 		textureWidth{ salvageMemory.textureWidth },
@@ -115,8 +125,15 @@ namespace Vulkan {
 		stagedTextureRequirements{ salvageMemory.stagedTextureRequirements },
 		stagedTextureOffset{ salvageMemory.stagedTextureOffset },
 		textureImage{ salvageMemory.textureImage },
+		textureImageView{ salvageMemory.textureImageView },
 		textureImageRequirements{ salvageMemory.textureImageRequirements },
-		textureImageOffset{ salvageMemory.textureImageOffset }
+		textureImageOffset{ salvageMemory.textureImageOffset },
+		
+		textureSampler{ salvageMemory.textureSampler },
+		t_descriptorSetLayout{ salvageMemory.t_descriptorSetLayout },
+		t_descriptorPool{ salvageMemory.t_descriptorPool },
+		t_descriptorSets{ salvageMemory.t_descriptorSets },
+		t_descriptorSetLayoutBinding{ salvageMemory.t_descriptorSetLayoutBinding }
 		{
 		salvageMemory.isSalvagedRemains = true;
 
@@ -141,15 +158,15 @@ namespace Vulkan {
 		salvageMemory.verticesBuffer = VK_NULL_HANDLE;
 		salvageMemory.indicesBuffer = VK_NULL_HANDLE;
 
-		salvageMemory.descriptorSetLayout = VK_NULL_HANDLE;
-		salvageMemory.descriptorPool = VK_NULL_HANDLE;
-		salvageMemory.descriptorSets = {};
+		salvageMemory.u_descriptorSetLayout = VK_NULL_HANDLE;
+		salvageMemory.u_descriptorPool = VK_NULL_HANDLE;
+		salvageMemory.u_descriptorSets = {};
+		salvageMemory.u_descriptorSetLayoutBinding = {};
 		salvageMemory.uniformBuffers = {};
 		salvageMemory.uniformBuffersRequirements = {};
 		salvageMemory.uniformBuffersOffsets = {};
 		salvageMemory.uniformBuffersAddresses = {};
 		salvageMemory.uniformBufferBindingNum = 0xFFFFFFFF;
-		salvageMemory.descriptorSetLayoutBinding = {};
 
 		salvageMemory.textureAddress = {};
 		salvageMemory.textureWidth = {};
@@ -159,8 +176,15 @@ namespace Vulkan {
 		salvageMemory.stagedTextureRequirements = {};
 		salvageMemory.stagedTextureOffset = {};
 		salvageMemory.textureImage = {};
+		salvageMemory.textureImageView = {};
 		salvageMemory.textureImageRequirements = {};
 		salvageMemory.textureImageOffset = {};
+
+		salvageMemory.textureSampler = {};
+		salvageMemory.t_descriptorSetLayout = {};
+		salvageMemory.t_descriptorPool = {};
+		salvageMemory.t_descriptorSets = {};
+		salvageMemory.t_descriptorSetLayoutBinding = {};
 		
 		std::cout << "---MOVED MEMORY---\n";
 	}
@@ -169,7 +193,9 @@ namespace Vulkan {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING MEMORY...---\n";
 
+			vkDestroyImageView(swapchain.queues.backend.device, textureImageView, nullptr);
 			vkDestroyImage(swapchain.queues.backend.device, textureImage, nullptr);
+			vkDestroySampler(swapchain.queues.backend.device, textureSampler, nullptr);
 
 			vkDestroyBuffer(swapchain.queues.backend.device, verticesBuffer, nullptr);
 			vkDestroyBuffer(swapchain.queues.backend.device, indicesBuffer, nullptr);
@@ -181,9 +207,13 @@ namespace Vulkan {
 				vkDestroyBuffer(swapchain.queues.backend.device, uniformBuffers[i], nullptr);
 			}
 
-			vkDestroyDescriptorSetLayout(swapchain.queues.backend.device, descriptorSetLayout, nullptr);
-			vkFreeDescriptorSets(swapchain.queues.backend.device, descriptorPool, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data());
-			vkDestroyDescriptorPool(swapchain.queues.backend.device, descriptorPool, nullptr);
+			vkDestroyDescriptorSetLayout(swapchain.queues.backend.device, u_descriptorSetLayout, nullptr);
+			vkFreeDescriptorSets(swapchain.queues.backend.device, u_descriptorPool, static_cast<uint32_t>(u_descriptorSets.size()), u_descriptorSets.data());
+			vkDestroyDescriptorPool(swapchain.queues.backend.device, u_descriptorPool, nullptr);
+
+			vkDestroyDescriptorSetLayout(swapchain.queues.backend.device, t_descriptorSetLayout, nullptr);
+			vkFreeDescriptorSets(swapchain.queues.backend.device, t_descriptorPool, static_cast<uint32_t>(t_descriptorSets.size()), t_descriptorSets.data());
+			vkDestroyDescriptorPool(swapchain.queues.backend.device, t_descriptorPool, nullptr);
 
 			vkFreeMemory(swapchain.queues.backend.device, gpuMemory, nullptr);
 			vkFreeMemory(swapchain.queues.backend.device, stagingMemory, nullptr);
@@ -366,11 +396,11 @@ namespace Vulkan {
 		copyBufferToImage(stagedTexture, textureImage, VkExtent2D(textureWidth, textureHeight));
 	}
 
-	void Memory::setupDescriptors() {
+	void Memory::setup_u_Descriptors() {
 		mapUniformBuffers();
-		createDescriptorSetLayout();
-		createDescriptorPool();
-		createDescriptorSet();
+		create_u_DescriptorSetLayout();
+		create_u_DescriptorPool();
+		create_u_DescriptorSets();
 		uniformBuffersToDescriptors();
 	}
 
@@ -381,23 +411,23 @@ namespace Vulkan {
 		}
 	}
 
-	void Memory::createDescriptorSetLayout() {
+	void Memory::create_u_DescriptorSetLayout() {
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
 			.bindingCount = 1,
-			.pBindings = &descriptorSetLayoutBinding
+			.pBindings = &u_descriptorSetLayoutBinding
 		};
 
-		if(vkCreateDescriptorSetLayout(swapchain.queues.backend.device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) == VK_SUCCESS) {
+		if(vkCreateDescriptorSetLayout(swapchain.queues.backend.device, &descriptorSetLayoutInfo, nullptr, &u_descriptorSetLayout) == VK_SUCCESS) {
 			std::cout << "Descriptor set layout created\n";
 		} else {
 			throw std::runtime_error("Descriptor set layout creation failure");
 		}
 	}
 
-	void Memory::createDescriptorPool() {
+	void Memory::create_u_DescriptorPool() {
 		VkDescriptorPoolSize uniformBufferDescriptors = {
 			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			.descriptorCount = static_cast<uint32_t>(uniformBuffers.size())
@@ -412,24 +442,24 @@ namespace Vulkan {
 			.pPoolSizes = &uniformBufferDescriptors
 		};
 
-		if(vkCreateDescriptorPool(swapchain.queues.backend.device, &descriptorPoolInfo, nullptr, &descriptorPool) == VK_SUCCESS) {
+		if(vkCreateDescriptorPool(swapchain.queues.backend.device, &descriptorPoolInfo, nullptr, &u_descriptorPool) == VK_SUCCESS) {
 			std::cout << "Descriptor pool created\n";
 		} else {
 			throw std::runtime_error("Descriptor pool creation failure");
 		}
 	}
 
-	void Memory::createDescriptorSet() {
-		std::vector<VkDescriptorSetLayout> layoutsDuplicated(uniformBuffers.size(), descriptorSetLayout);
+	void Memory::create_u_DescriptorSets() {
+		std::vector<VkDescriptorSetLayout> layoutsDuplicated(uniformBuffers.size(), u_descriptorSetLayout);
 		VkDescriptorSetAllocateInfo descriptorSetInfo = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.pNext = nullptr,
-			.descriptorPool = descriptorPool,
+			.descriptorPool = u_descriptorPool,
 			.descriptorSetCount = static_cast<uint32_t>(uniformBuffers.size()),
 			.pSetLayouts = layoutsDuplicated.data()
 		};
 
-		if(vkAllocateDescriptorSets(swapchain.queues.backend.device, &descriptorSetInfo, descriptorSets.data()) == VK_SUCCESS) {
+		if(vkAllocateDescriptorSets(swapchain.queues.backend.device, &descriptorSetInfo, u_descriptorSets.data()) == VK_SUCCESS) {
 			std::cout << "Descriptor sets created\n";
 		} else {
 			throw std::runtime_error("Descriptor sets creation failure");
@@ -447,7 +477,7 @@ namespace Vulkan {
 			VkWriteDescriptorSet writeInfo = {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.pNext = nullptr,
-				.dstSet = descriptorSets[i],
+				.dstSet = u_descriptorSets[i],
 				.dstBinding = uniformBufferBindingNum,
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
@@ -458,6 +488,15 @@ namespace Vulkan {
 			};
 
 			vkUpdateDescriptorSets(swapchain.queues.backend.device, 1, &writeInfo, 0, nullptr);
+		}
+	}
+
+	void Memory::loadTexture() {
+		textureAddress = stbi_load(R"(resources/textures/Lumberjack Sion.jpg)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
+		textureSize = textureWidth * textureHeight * 4;
+
+		if (textureAddress == nullptr) {
+			throw std::runtime_error("Texture loading failure");
 		}
 	}
 
@@ -486,16 +525,149 @@ namespace Vulkan {
 
 			vkGetImageMemoryRequirements(swapchain.queues.backend.device, textureImage, &textureImageRequirements);
 		} else {
-			throw std::runtime_error("Texture image creation failure\n");
+			throw std::runtime_error("Texture image creation failure");
 		}
 	}
 
-	void Memory::loadTexture() {
-		textureAddress = stbi_load(R"(resources/textures/Lumberjack Sion.jpg)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
-		textureSize = textureWidth * textureHeight * 4;
+	void Memory::createTextureImageView() {
+		VkImageViewCreateInfo viewInfo = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.image = textureImage,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = VK_FORMAT_R8G8B8A8_SRGB,
+			.subresourceRange = VkImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+		};
 
-		if(textureAddress == nullptr) {
-			throw std::runtime_error("Texture loading failure");
+		if (vkCreateImageView(swapchain.queues.backend.device, &viewInfo, nullptr, &textureImageView) == VK_SUCCESS) {
+			std::cout << "Created texture image view\n";
+		} else {
+			throw std::runtime_error("Texture image view creation failure");
+		}
+	}
+
+	void Memory::setupSampler() {
+		VkPhysicalDeviceProperties prop{};
+		vkGetPhysicalDeviceProperties(swapchain.queues.backend.physicalDevice, &prop);
+
+		VkSamplerCreateInfo textureSamplerInfo = {
+			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.magFilter = VK_FILTER_LINEAR,
+			.minFilter = VK_FILTER_LINEAR,
+			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+			.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.mipLodBias = 0.0f,
+			.anisotropyEnable = true,
+			.maxAnisotropy = prop.limits.maxSamplerAnisotropy,
+			.compareEnable = false,
+			.compareOp = VK_COMPARE_OP_ALWAYS,
+			.minLod = 0.0f,
+			.maxLod = 0.0f,
+			.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+			.unnormalizedCoordinates = false,
+		};
+
+		if(vkCreateSampler(swapchain.queues.backend.device, &textureSamplerInfo, nullptr, &textureSampler) == VK_SUCCESS) {
+			std::cout << "Texture sampler created\n";
+		} else {
+			throw std::runtime_error("Texture sampler creation failure");
+		}
+	}
+
+	void Memory::setup_t_Descriptors() {
+		create_t_DescriptorSetLayout();
+		create_t_DescriptorPool();
+		create_t_DescriptorSets();
+		samplerToDescriptors();
+	}
+
+	void Memory::create_t_DescriptorSetLayout() {
+		VkDescriptorSetLayoutBinding textureBinding = {
+			.binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 1,
+			.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			.pImmutableSamplers = nullptr,
+		};
+
+		VkDescriptorSetLayoutCreateInfo textureDescriptorSetLayoutInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.bindingCount = 1,
+			.pBindings = &textureBinding,
+		};
+
+		if(vkCreateDescriptorSetLayout(swapchain.queues.backend.device, &textureDescriptorSetLayoutInfo, nullptr, &t_descriptorSetLayout) != VK_SUCCESS) {
+			throw std::runtime_error("Create texture descriptor set layout failure");
+		}
+	}
+
+	void Memory::create_t_DescriptorPool() {
+		VkDescriptorPoolSize poolNeededSize = {
+			.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = static_cast<uint32_t>(t_descriptorSets.size())
+		};
+
+		VkDescriptorPoolCreateInfo textureDescriptorPoolInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+			.maxSets = static_cast<uint32_t>(t_descriptorSets.size()),
+			.poolSizeCount = 1,
+			.pPoolSizes = &poolNeededSize
+		};
+
+		if (vkCreateDescriptorPool(swapchain.queues.backend.device, &textureDescriptorPoolInfo, nullptr, &t_descriptorPool) != VK_SUCCESS) {
+			throw std::runtime_error("Create texture descriptor pool failure");
+		}
+	}
+
+	void Memory::create_t_DescriptorSets() {
+		std::vector<VkDescriptorSetLayout> layoutsDuplicated(t_descriptorSets.size(), t_descriptorSetLayout);
+
+		VkDescriptorSetAllocateInfo descriptorSetInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.descriptorPool = t_descriptorPool,
+			.descriptorSetCount = static_cast<uint32_t>(t_descriptorSets.size()),
+			.pSetLayouts = layoutsDuplicated.data()
+		};
+
+		if (vkAllocateDescriptorSets(swapchain.queues.backend.device, &descriptorSetInfo, t_descriptorSets.data()) == VK_SUCCESS) {
+			std::cout << "Texture descriptor sets created\n";
+		} else {
+			throw std::runtime_error("Descriptor sets creation failure");
+		}
+	}
+
+	void Memory::samplerToDescriptors() {
+		for (int i = 0; i < t_descriptorSets.size(); i++) {
+			VkDescriptorImageInfo imageInfo = {
+				.sampler = textureSampler,
+				.imageView = textureImageView,
+				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			};
+
+			VkWriteDescriptorSet writeInfo = {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.pNext = nullptr,
+				.dstSet = t_descriptorSets[i],
+				.dstBinding = 0,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.pImageInfo = &imageInfo,
+				.pBufferInfo = nullptr,
+				.pTexelBufferView = nullptr
+			};
+
+			vkUpdateDescriptorSets(swapchain.queues.backend.device, 1, &writeInfo, 0, nullptr);
 		}
 	}
 

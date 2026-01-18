@@ -211,7 +211,7 @@ namespace Vulkan {
 			.flags = 0,
 			.vertexBindingDescriptionCount = 1,
 			.pVertexBindingDescriptions = &vertexBinding,
-			.vertexAttributeDescriptionCount = 2,
+			.vertexAttributeDescriptionCount = 3,
 			.pVertexAttributeDescriptions = attributeDescriptions.data()
 		};
 
@@ -340,12 +340,14 @@ namespace Vulkan {
 	}
 
 	void Pipeline::initPipelineLayout() {
+		std::vector<VkDescriptorSetLayout> layouts = { memory.u_descriptorSetLayout, memory.t_descriptorSetLayout };
+
 		VkPipelineLayoutCreateInfo layoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
-			.setLayoutCount = 1,
-			.pSetLayouts = &memory.descriptorSetLayout,
+			.setLayoutCount = static_cast<uint32_t>(layouts.size()),
+			.pSetLayouts = layouts.data(),
 			.pushConstantRangeCount = 0,
 			.pPushConstantRanges = nullptr
 		};

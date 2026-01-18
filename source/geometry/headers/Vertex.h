@@ -8,6 +8,7 @@ namespace Geometry {
 	struct Vertex {
 		glm::vec4 position;
 		glm::vec4 color;
+		glm::vec2 textureCoordinate;
 
 		static VkVertexInputBindingDescription getInputBindingDescription();
 		static std::vector<VkVertexInputAttributeDescription> getInputAttributeDescriptions();

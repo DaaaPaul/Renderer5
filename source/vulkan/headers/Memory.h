@@ -46,15 +46,15 @@ namespace Vulkan {
 		VkBuffer stagedVertices;
 		VkBuffer stagedIndices;
 
-		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorPool descriptorPool;
-		std::vector<VkDescriptorSet> descriptorSets;
+		VkDescriptorSetLayout u_descriptorSetLayout;
+		VkDescriptorPool u_descriptorPool;
+		std::vector<VkDescriptorSet> u_descriptorSets;
+		VkDescriptorSetLayoutBinding u_descriptorSetLayoutBinding;
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<VkMemoryRequirements> uniformBuffersRequirements;
 		std::vector<VkDeviceSize> uniformBuffersOffsets;
 		std::vector<void*> uniformBuffersAddresses;
 		uint32_t uniformBufferBindingNum;
-		VkDescriptorSetLayoutBinding descriptorSetLayoutBinding;
 
 		unsigned char* textureAddress;
 		int textureWidth;
@@ -64,11 +64,20 @@ namespace Vulkan {
 		VkMemoryRequirements stagedTextureRequirements;
 		VkDeviceSize stagedTextureOffset;
 		VkImage textureImage;
+		VkImageView textureImageView;
 		VkMemoryRequirements textureImageRequirements;
 		VkDeviceSize textureImageOffset;
 
+		VkSampler textureSampler;
+		VkDescriptorSetLayout t_descriptorSetLayout;
+		VkDescriptorPool t_descriptorPool;
+		std::vector<VkDescriptorSet> t_descriptorSets;
+		VkDescriptorSetLayoutBinding t_descriptorSetLayoutBinding;
+
 		void setupBuffersAndMemory();
-		void setupDescriptors();
+		void setup_u_Descriptors();
+		void setupSampler();
+		void setup_t_Descriptors();
 
 		void createVerticesBuffer();
 		void createIndicesBuffer();
@@ -85,13 +94,19 @@ namespace Vulkan {
 		void populateTextureBuffer();
 
 		void mapUniformBuffers();
-		void createDescriptorSetLayout();
-		void createDescriptorPool();
-		void createDescriptorSet();
+		void create_u_DescriptorSetLayout();
+		void create_u_DescriptorPool();
+		void create_u_DescriptorSets();
 		void uniformBuffersToDescriptors();
 
 		void loadTexture();
 		void createTextureImage();
+		void createTextureImageView();
+
+		void create_t_DescriptorSetLayout();
+		void create_t_DescriptorPool();
+		void create_t_DescriptorSets();
+		void samplerToDescriptors();
 
 		void allocateBeginOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
 		void endSubmitFreeOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
