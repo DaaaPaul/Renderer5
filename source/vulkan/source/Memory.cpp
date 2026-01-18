@@ -10,10 +10,10 @@ namespace Vulkan {
 	isSalvagedRemains{ false },
 	FLIGHT_COUNT{ 3 },
 	vertices{ 
-		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f))
+		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)),
+		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f)),
+		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f)),
+		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 1.0f))
 	},
 	indices{
 		0, 1, 2,
@@ -548,6 +548,9 @@ namespace Vulkan {
 	}
 
 	void Memory::setupSampler() {
+		VkPhysicalDeviceProperties prop{};
+		vkGetPhysicalDeviceProperties(swapchain.queues.backend.physicalDevice, &prop);
+
 		VkSamplerCreateInfo textureSamplerInfo = {
 			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 			.pNext = nullptr,
@@ -558,13 +561,13 @@ namespace Vulkan {
 			.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
 			.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
 			.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-			.mipLodBias = 1.0f,
+			.mipLodBias = 0.0f,
 			.anisotropyEnable = true,
-			.maxAnisotropy = 10.0f,
+			.maxAnisotropy = prop.limits.maxSamplerAnisotropy,
 			.compareEnable = false,
 			.compareOp = VK_COMPARE_OP_ALWAYS,
 			.minLod = 0.0f,
-			.maxLod = 1.0f,
+			.maxLod = 0.0f,
 			.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
 			.unnormalizedCoordinates = false,
 		};

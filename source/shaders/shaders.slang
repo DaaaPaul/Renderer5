@@ -16,8 +16,13 @@ struct Transformation {
     float4x4 projection;
 };
 
+// binding 0 set 0
 [[vk::binding(0, 0)]]
 ConstantBuffer<Transformation> transformation;
+
+// binding 0 set 1
+[[vk::binding(0, 1)]]
+Sampler2D textureSampler;
 
 [shader("vertex")]
 VertexOut vertexShader(VertexIn given) {
@@ -31,5 +36,5 @@ VertexOut vertexShader(VertexIn given) {
 
 [shader("fragment")]
 float4 fragmentShader(VertexOut processed) {
-    return processed.col;
+    return textureSampler.Sample(processed.texCoord);
 }
