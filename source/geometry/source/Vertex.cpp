@@ -24,7 +24,13 @@ namespace Geometry {
 			.format = VK_FORMAT_R32G32B32A32_SFLOAT,
 			.offset = offsetof(Vertex, color)
 		};
+		VkVertexInputAttributeDescription textureCoordDescription = {
+			.location = 2,
+			.binding = 0,
+			.format = VK_FORMAT_R32G32_SFLOAT,
+			.offset = offsetof(Vertex, textureCoordinate)
+		};
 
-		return { positionDescription, colorDescription };
+		return { positionDescription, colorDescription, textureCoordDescription };
 	}
 }

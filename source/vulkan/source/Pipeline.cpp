@@ -211,7 +211,7 @@ namespace Vulkan {
 			.flags = 0,
 			.vertexBindingDescriptionCount = 1,
 			.pVertexBindingDescriptions = &vertexBinding,
-			.vertexAttributeDescriptionCount = 2,
+			.vertexAttributeDescriptionCount = 3,
 			.pVertexAttributeDescriptions = attributeDescriptions.data()
 		};
 
@@ -345,7 +345,7 @@ namespace Vulkan {
 			.pNext = nullptr,
 			.flags = 0,
 			.setLayoutCount = 1,
-			.pSetLayouts = &memory.descriptorSetLayout,
+			.pSetLayouts = &memory.u_descriptorSetLayout,
 			.pushConstantRangeCount = 0,
 			.pPushConstantRanges = nullptr
 		};

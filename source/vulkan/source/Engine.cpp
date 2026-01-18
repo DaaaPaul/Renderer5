@@ -195,7 +195,7 @@ namespace Vulkan {
 		VkDeviceSize offset = 0;
 		vkCmdBindVertexBuffers(targetCommandBuffer, 0, 1, &commands.sync.pipeline.memory.verticesBuffer, &offset);
 		vkCmdBindIndexBuffer(targetCommandBuffer, commands.sync.pipeline.memory.indicesBuffer, offset, VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 1, &commands.sync.pipeline.memory.descriptorSets[convertDoubleToSingleIndex(queueIndex, flightIndex)], 0, nullptr);
+		vkCmdBindDescriptorSets(targetCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, commands.sync.pipeline.layout, 0, 1, &commands.sync.pipeline.memory.u_descriptorSets[convertDoubleToSingleIndex(queueIndex, flightIndex)], 0, nullptr);
 		vkCmdDrawIndexed(targetCommandBuffer, commands.sync.pipeline.memory.indices.size(), 1, 0, 0, 0);
 		vkCmdEndRendering(targetCommandBuffer);
 

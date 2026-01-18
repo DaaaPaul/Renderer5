@@ -1,11 +1,13 @@
 struct VertexIn {
     [[vk::location(0)]] float4 pos;
     [[vk::location(1)]] float4 col;
+    [[vk::location(2)]] float2 texCoord;
 };
 
 struct VertexOut {
     float4 pos : SV_Position;
     float4 col;
+    float2 texCoord;
 };
 
 struct Transformation {
@@ -22,6 +24,7 @@ VertexOut vertexShader(VertexIn given) {
     VertexOut final;
     final.pos = mul(transformation.projection, mul(transformation.view, mul(transformation.model, given.pos)));
     final.col = given.col;
+    final.texCoord = given.texCoord;
 
     return final;
 }
