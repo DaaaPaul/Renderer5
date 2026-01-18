@@ -120,7 +120,6 @@
     <Text Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\Downloads\Lumberjack Sion.jpg" />
     <Image Include="resources\textures\Lumberjack Sion.jpg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
