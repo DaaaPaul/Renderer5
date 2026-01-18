@@ -94,4 +94,12 @@
   <ItemGroup>
     <Text Include="TODO.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\Downloads\Lumberjack Sion.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\textures\Lumberjack Sion.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

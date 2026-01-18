@@ -1,6 +1,8 @@
 #include "../headers/Memory.h"
 #include "../../geometry/headers/Transformation.h"
 #include <glm/glm.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <iostream>
 
 namespace Vulkan {
@@ -49,9 +51,11 @@ namespace Vulkan {
 	uniformBufferBindingNum{ 0 },
 	descriptorSetLayoutBinding{ Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBufferBindingNum, 1) } {
 		std::cout << "---CREATING MEMORY...---\n";
-
+		
+		loadTexture();
 		setupBuffersAndMemory();
 		setupDescriptors();
+		setupTextures();
 	}
 
 	Memory::Memory(Memory&& salvageMemory) :
@@ -152,6 +156,7 @@ namespace Vulkan {
 		createVerticesBuffer();
 		createIndicesBuffer();
 		createUniformBuffers();
+		createTextureBuffer();
 		createStagedVertices();
 		createStagedIndices();
 		allocateGPUMemory();
@@ -186,6 +191,15 @@ namespace Vulkan {
 		}
 
 		std::cout << "Created " << uniformBuffers.size() << " uniform buffers with size " << sizeof(Geometry::Transformation) << '\n';
+	}
+
+	void Memory::createTextureBuffer() {
+		createBuffer(stagedTexture, textureSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+		vkGetBufferMemoryRequirements(swapchain.queues.backend.device, stagedTexture, &stagedTextureRequirements);
+
+		std::cout << "Created staged textures buffer with size " << textureSize <<
+			" requiring size of " << stagedTextureRequirements.size <<
+			" and offsetted at " << stagedTextureRequirements.alignment << '\n';
 	}
 
 	void Memory::createStagedVertices() {
@@ -226,12 +240,13 @@ namespace Vulkan {
 	}
 
 	void Memory::allocateStagingMemory() {
-		std::vector<VkDeviceSize> stagingBufferSizeRequirements = { stagedVerticesRequirements.size, stagedIndicesRequirements.size };
+		std::vector<VkDeviceSize> stagingBufferSizeRequirements = { stagedVerticesRequirements.size, stagedIndicesRequirements.size, stagedTextureRequirements.size };
 		for(int i = 0; i < uniformBuffers.size(); i++) {
 			stagingBufferSizeRequirements.push_back(uniformBuffersRequirements[i].size);
 		}
 
-		std::vector<VkDeviceSize> stagingBufferAlignments = { stagedVerticesRequirements.alignment , stagedIndicesRequirements.alignment };
+
+		std::vector<VkDeviceSize> stagingBufferAlignments = { stagedVerticesRequirements.alignment , stagedIndicesRequirements.alignment, stagedTextureRequirements.alignment };
 		for (int i = 0; i < uniformBuffers.size(); i++) {
 			stagingBufferAlignments.push_back(uniformBuffersRequirements[i].alignment);
 		}
@@ -241,11 +256,13 @@ namespace Vulkan {
 		VkDeviceSize allocationSize = calculateAllocationSize(stagingBufferSizeRequirements, stagingBufferAlignments, offsets);
 		stagedVerticesOffset = offsets[0];
 		stagedIndicesOffset = offsets[1];
+		stagedTextureOffset = offsets[2];
+		offsets.erase(offsets.begin());
 		offsets.erase(offsets.begin());
 		offsets.erase(offsets.begin());
 		uniformBuffersOffsets = offsets;
 
-		uint32_t validMemoryTypes = stagedVerticesRequirements.memoryTypeBits & stagedIndicesRequirements.memoryTypeBits & uniformBuffersRequirements[0].memoryTypeBits;
+		uint32_t validMemoryTypes = stagedVerticesRequirements.memoryTypeBits & stagedIndicesRequirements.memoryTypeBits & stagedTextureRequirements.memoryTypeBits & uniformBuffersRequirements[0].memoryTypeBits;
 		VkMemoryPropertyFlags neededMemoryType = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		uint32_t memoryTypeIndex = getMemoryTypeIndex(validMemoryTypes, neededMemoryType);
 		allocateMemory(stagingMemory, allocationSize, memoryTypeIndex);
@@ -287,6 +304,17 @@ namespace Vulkan {
 		vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
 
 		copyBuffer(stagedIndices, indicesBuffer, stagedIndicesSize);
+	}
+
+	void Memory::populateTextureBuffer() {
+		vkBindBufferMemory(swapchain.queues.backend.device, stagedTexture, stagingMemory, stagedTextureOffset);
+
+		void* stagedTextureAddress = nullptr;
+		if (vkMapMemory(swapchain.queues.backend.device, stagingMemory, stagedTextureOffset, textureSize, 0, &stagedTextureAddress) != VK_SUCCESS) {
+			throw std::runtime_error("Mapping memory failure");
+		}
+		memcpy(stagedTextureAddress, textureAddress, textureSize);
+		vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
 	}
 
 	void Memory::setupDescriptors() {
@@ -382,6 +410,21 @@ namespace Vulkan {
 
 			vkUpdateDescriptorSets(swapchain.queues.backend.device, 1, &writeInfo, 0, nullptr);
 		}
+	}
+
+	void Memory::loadTexture() {
+		int width{}, height{}, channelsCount{};
+
+		textureAddress = stbi_load(R"(resources/textures/Lumberjack Sion.jpg)", &width, &height, &channelsCount, STBI_rgb_alpha);
+		textureSize = width * height * 4;
+
+		if(textureAddress == nullptr) {
+			throw std::runtime_error("Texture loading failure");
+		}
+	}
+
+	void Memory::setupTextures() {
+	
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {

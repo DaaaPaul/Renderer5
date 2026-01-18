@@ -56,12 +56,20 @@ namespace Vulkan {
 		uint32_t uniformBufferBindingNum;
 		VkDescriptorSetLayoutBinding descriptorSetLayoutBinding;
 
+		unsigned char* textureAddress;
+		uint32_t textureSize;
+		VkBuffer stagedTexture;
+		VkMemoryRequirements stagedTextureRequirements;
+		VkDeviceSize stagedTextureOffset;
+
 		void setupBuffersAndMemory();
 		void setupDescriptors();
+		void setupTextures();
 
 		void createVerticesBuffer();
 		void createIndicesBuffer();
 		void createUniformBuffers();
+		void createTextureBuffer();
 		void createStagedVertices();
 		void createStagedIndices();
 		void allocateGPUMemory();
@@ -69,12 +77,15 @@ namespace Vulkan {
 		void bindUniformBuffersToStagingMemory();
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
+		void populateTextureBuffer();
 
 		void mapUniformBuffers();
 		void createDescriptorSetLayout();
 		void createDescriptorPool();
 		void createDescriptorSet();
 		void uniformBuffersToDescriptors();
+
+		void loadTexture();
 
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);

@@ -1,5 +1,4 @@
 EASY:
 	- add preference for discrete GPU in Vulkan::Backend
 	- mop up the messes
-
-HARD:
+	- resize swapchain
