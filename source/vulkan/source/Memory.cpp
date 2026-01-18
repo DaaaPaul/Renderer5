@@ -49,13 +49,25 @@ namespace Vulkan {
 	uniformBuffersOffsets(uniformBuffers.size()),
 	uniformBuffersAddresses(uniformBuffers.size()),
 	uniformBufferBindingNum{ 0 },
-	descriptorSetLayoutBinding{ Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBufferBindingNum, 1) } {
+	descriptorSetLayoutBinding{ Geometry::Transformation::getDescriptorSetLayoutBinding(uniformBufferBindingNum, 1) },
+
+	textureAddress{},
+	textureWidth{},
+	textureHeight{},
+	textureSize{},
+	stagedTexture{},
+	stagedTextureRequirements{},
+	stagedTextureOffset{},
+	textureImage{},
+	textureImageRequirements{},
+	textureImageOffset{}
+	{
 		std::cout << "---CREATING MEMORY...---\n";
 		
 		loadTexture();
+		createTextureImage();
 		setupBuffersAndMemory();
 		setupDescriptors();
-		setupTextures();
 	}
 
 	Memory::Memory(Memory&& salvageMemory) :
@@ -93,7 +105,19 @@ namespace Vulkan {
 		uniformBuffersOffsets{ salvageMemory.uniformBuffersOffsets },
 		uniformBuffersAddresses{ salvageMemory.uniformBuffersAddresses },
 		uniformBufferBindingNum{ salvageMemory.uniformBufferBindingNum },
-		descriptorSetLayoutBinding{ salvageMemory.descriptorSetLayoutBinding } {
+		descriptorSetLayoutBinding{ salvageMemory.descriptorSetLayoutBinding },
+	
+		textureAddress{ salvageMemory.textureAddress },
+		textureWidth{ salvageMemory.textureWidth },
+		textureHeight{ salvageMemory.textureHeight},
+		textureSize{ salvageMemory.textureSize },
+		stagedTexture{ salvageMemory.stagedTexture },
+		stagedTextureRequirements{ salvageMemory.stagedTextureRequirements },
+		stagedTextureOffset{ salvageMemory.stagedTextureOffset },
+		textureImage{ salvageMemory.textureImage },
+		textureImageRequirements{ salvageMemory.textureImageRequirements },
+		textureImageOffset{ salvageMemory.textureImageOffset }
+		{
 		salvageMemory.isSalvagedRemains = true;
 
 		salvageMemory.graphicsQueueFamilyIndex = 0xFFFFFFFF;
@@ -126,6 +150,17 @@ namespace Vulkan {
 		salvageMemory.uniformBuffersAddresses = {};
 		salvageMemory.uniformBufferBindingNum = 0xFFFFFFFF;
 		salvageMemory.descriptorSetLayoutBinding = {};
+
+		salvageMemory.textureAddress = {};
+		salvageMemory.textureWidth = {};
+		salvageMemory.textureHeight = {};
+		salvageMemory.textureSize = {};
+		salvageMemory.stagedTexture = {};
+		salvageMemory.stagedTextureRequirements = {};
+		salvageMemory.stagedTextureOffset = {};
+		salvageMemory.textureImage = {};
+		salvageMemory.textureImageRequirements = {};
+		salvageMemory.textureImageOffset = {};
 		
 		std::cout << "---MOVED MEMORY---\n";
 	}
@@ -134,10 +169,13 @@ namespace Vulkan {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING MEMORY...---\n";
 
+			vkDestroyImage(swapchain.queues.backend.device, textureImage, nullptr);
+
 			vkDestroyBuffer(swapchain.queues.backend.device, verticesBuffer, nullptr);
 			vkDestroyBuffer(swapchain.queues.backend.device, indicesBuffer, nullptr);
 			vkDestroyBuffer(swapchain.queues.backend.device, stagedVertices, nullptr);
 			vkDestroyBuffer(swapchain.queues.backend.device, stagedIndices, nullptr);
+			vkDestroyBuffer(swapchain.queues.backend.device, stagedTexture, nullptr);
 
 			for(int i = 0; i < uniformBuffers.size(); i++) {
 				vkDestroyBuffer(swapchain.queues.backend.device, uniformBuffers[i], nullptr);
@@ -162,8 +200,10 @@ namespace Vulkan {
 		allocateGPUMemory();
 		allocateStagingMemory();
 		bindUniformBuffersToStagingMemory();
+		bindTextureImageToGpuMemory();
 		populateVerticesBuffer();
 		populateIndicesBuffer();
+		populateTextureBuffer();
 	}
 
 	void Memory::createVerticesBuffer() {
@@ -221,17 +261,18 @@ namespace Vulkan {
 	}
 
 	void Memory::allocateGPUMemory() {
-		std::vector<VkDeviceSize> gpuBufferSizeRequirements{ verticesBufferRequirements.size, indicesBufferRequirements.size };
+		std::vector<VkDeviceSize> gpuBufferSizeRequirements{ verticesBufferRequirements.size, indicesBufferRequirements.size, textureImageRequirements.size };
 
-		std::vector<VkDeviceSize> gpuBufferAlignments{ verticesBufferRequirements.alignment, indicesBufferRequirements.alignment };
+		std::vector<VkDeviceSize> gpuBufferAlignments{ verticesBufferRequirements.alignment, indicesBufferRequirements.alignment, textureImageRequirements.alignment };
 
 		std::vector<VkDeviceSize> offsets(gpuBufferAlignments.size());
 
 		VkDeviceSize allocationSize = calculateAllocationSize(gpuBufferSizeRequirements, gpuBufferAlignments, offsets);
 		verticesBufferOffset = offsets[0];
 		indicesBufferOffset = offsets[1];
+		textureImageOffset = offsets[2];
 		
-		uint32_t validMemoryTypes = verticesBufferRequirements.memoryTypeBits & indicesBufferRequirements.memoryTypeBits;
+		uint32_t validMemoryTypes = verticesBufferRequirements.memoryTypeBits & indicesBufferRequirements.memoryTypeBits & textureImageRequirements.memoryTypeBits;
 		VkMemoryPropertyFlags neededMemoryType = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		uint32_t memoryTypeIndex = getMemoryTypeIndex(validMemoryTypes, neededMemoryType);
 		allocateMemory(gpuMemory, allocationSize, memoryTypeIndex);
@@ -278,6 +319,10 @@ namespace Vulkan {
 		}
 	}
 
+	void Memory::bindTextureImageToGpuMemory() {
+		vkBindImageMemory(swapchain.queues.backend.device, textureImage, gpuMemory, textureImageOffset);
+	}
+
 	void Memory::populateVerticesBuffer() {
 		vkBindBufferMemory(swapchain.queues.backend.device, stagedVertices, stagingMemory, stagedVerticesOffset);
 		vkBindBufferMemory(swapchain.queues.backend.device, verticesBuffer, gpuMemory, verticesBufferOffset);
@@ -315,6 +360,10 @@ namespace Vulkan {
 		}
 		memcpy(stagedTextureAddress, textureAddress, textureSize);
 		vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
+
+		stbi_image_free(textureAddress);
+
+		copyBufferToImage(stagedTexture, textureImage, VkExtent2D(textureWidth, textureHeight));
 	}
 
 	void Memory::setupDescriptors() {
@@ -412,19 +461,133 @@ namespace Vulkan {
 		}
 	}
 
-	void Memory::loadTexture() {
-		int width{}, height{}, channelsCount{};
+	void Memory::createTextureImage() {
+		VkImageCreateInfo imageInfo = { 
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.imageType = VK_IMAGE_TYPE_2D, 
+			.format = swapchain.swapchainInfo.imageFormat,
+			.extent = VkExtent3D(textureWidth, textureHeight, 1),
+			.mipLevels = 1, 
+			.arrayLayers = 1, 
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.tiling = VK_IMAGE_TILING_OPTIMAL, 
+			.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.queueFamilyIndexCount = 1,
+			.pQueueFamilyIndices = &graphicsQueueFamilyIndex,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
 
-		textureAddress = stbi_load(R"(resources/textures/Lumberjack Sion.jpg)", &width, &height, &channelsCount, STBI_rgb_alpha);
-		textureSize = width * height * 4;
+		if(vkCreateImage(swapchain.queues.backend.device, &imageInfo, nullptr, &textureImage) == VK_SUCCESS) {
+			std::cout << "Created " << textureWidth << "x" << textureHeight << "x1"
+				" texture with format " << swapchain.swapchainInfo.imageFormat << " and initial layout undefined\n";
+
+			vkGetImageMemoryRequirements(swapchain.queues.backend.device, textureImage, &textureImageRequirements);
+		} else {
+			throw std::runtime_error("Texture image creation failure\n");
+		}
+	}
+
+	void Memory::loadTexture() {
+		textureAddress = stbi_load(R"(resources/textures/Lumberjack Sion.jpg)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
+		textureSize = textureWidth * textureHeight * 4;
 
 		if(textureAddress == nullptr) {
 			throw std::runtime_error("Texture loading failure");
 		}
 	}
 
-	void Memory::setupTextures() {
-	
+	void Memory::insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess) {
+		VkImageSubresourceRange memoryBarrierResourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		VkImageMemoryBarrier2 imageMemoryBarrier = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext = nullptr,
+			.srcStageMask = sourceStage,
+			.srcAccessMask = sourceAccess,
+			.dstStageMask = destStage,
+			.dstAccessMask = destAccess,
+			.oldLayout = oldLayout,
+			.newLayout = newLayout,
+			.srcQueueFamilyIndex = graphicsQueueFamilyIndex,
+			.dstQueueFamilyIndex = graphicsQueueFamilyIndex,
+			.image = image,
+			.subresourceRange = memoryBarrierResourceRange
+		};
+
+		VkDependencyInfo memoryBarriersInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = nullptr,
+			.dependencyFlags = 0,
+			.memoryBarrierCount = 0,
+			.pMemoryBarriers = nullptr,
+			.bufferMemoryBarrierCount = 0,
+			.pBufferMemoryBarriers = nullptr,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageMemoryBarrier,
+		};
+
+		vkCmdPipelineBarrier2(cmdBuf, &memoryBarriersInfo);
+	}
+
+	void Memory::allocateBeginOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool) {
+		VkCommandPoolCreateInfo poolInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+			.queueFamilyIndex = graphicsQueueFamilyIndex
+		};
+		if (vkCreateCommandPool(swapchain.queues.backend.device, &poolInfo, nullptr, &pool) != VK_SUCCESS) {
+			throw std::runtime_error("Temporary command pool allocation failure");
+		}
+
+		VkCommandBufferAllocateInfo cmdBufInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.commandPool = pool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1
+		};
+		if (vkAllocateCommandBuffers(swapchain.queues.backend.device, &cmdBufInfo, &cmdBuf) != VK_SUCCESS) {
+			throw std::runtime_error("One time command buffer allocation failure");
+		}
+
+		VkCommandBufferBeginInfo beginInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+			.pInheritanceInfo = nullptr
+		};
+		vkBeginCommandBuffer(cmdBuf, &beginInfo);
+	}
+
+	void Memory::endSubmitFreeOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool) {
+		vkEndCommandBuffer(cmdBuf);
+
+		VkSubmitInfo submitInfo = {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.waitSemaphoreCount = 0,
+			.pWaitSemaphores = nullptr,
+			.pWaitDstStageMask = nullptr,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &cmdBuf,
+			.signalSemaphoreCount = 0,
+			.pSignalSemaphores = nullptr
+		};
+		vkQueueSubmit(swapchain.queues.graphicsQueues[0], 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(swapchain.queues.graphicsQueues[0]);
+
+		vkFreeCommandBuffers(swapchain.queues.backend.device, pool, 1, &cmdBuf);
+		vkDestroyCommandPool(swapchain.queues.backend.device, pool, nullptr);
 	}
 
 	uint32_t Memory::getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask) {
@@ -496,56 +659,45 @@ namespace Vulkan {
 
 
 	void Memory::copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning) {
-		VkCommandPool tempPool = VK_NULL_HANDLE;
-		VkCommandPoolCreateInfo poolInfo = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-			.queueFamilyIndex = graphicsQueueFamilyIndex
-		};
-		if (vkCreateCommandPool(swapchain.queues.backend.device, &poolInfo, nullptr, &tempPool) != VK_SUCCESS) {
-			throw std::runtime_error("Temporary command pool allocation failure");
-		}
-
-		VkCommandBuffer tempCmdBuf = VK_NULL_HANDLE;
-		VkCommandBufferAllocateInfo cmdBufInfo = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.pNext = nullptr,
-			.commandPool = tempPool,
-			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = 1
-		};
-		vkAllocateCommandBuffers(swapchain.queues.backend.device, &cmdBufInfo, &tempCmdBuf);
-
-		VkCommandBufferBeginInfo beginInfo = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-			.pNext = nullptr,
-			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-			.pInheritanceInfo = nullptr
-		};
-		vkBeginCommandBuffer(tempCmdBuf, &beginInfo);
+		VkCommandBuffer tmpCmdBuf{};
+		VkCommandPool tmpPool{};
+		allocateBeginOneTimeCommandBuffer(tmpCmdBuf, tmpPool);
+		
 		VkBufferCopy fullSize = {
 			.srcOffset = 0,
 			.dstOffset = 0,
 			.size = sizeFromBeginning
 		};
-		vkCmdCopyBuffer(tempCmdBuf, src, dst, 1, &fullSize);
-		vkEndCommandBuffer(tempCmdBuf);
+		vkCmdCopyBuffer(tmpCmdBuf, src, dst, 1, &fullSize);
 
-		VkSubmitInfo submitInfo = {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.pNext = nullptr,
-			.waitSemaphoreCount = 0,
-			.pWaitSemaphores = nullptr,
-			.pWaitDstStageMask = nullptr,
-			.commandBufferCount = 1,
-			.pCommandBuffers = &tempCmdBuf,
-			.signalSemaphoreCount = 0,
-			.pSignalSemaphores = nullptr
+		endSubmitFreeOneTimeCommandBuffer(tmpCmdBuf, tmpPool);
+	}
+
+	void Memory::copyBufferToImage(VkBuffer& src, VkImage& dst, VkExtent2D imageExtent) {
+		VkCommandPool tmpPool{};
+		VkCommandBuffer tmpCmdBuf{};
+
+		allocateBeginOneTimeCommandBuffer(tmpCmdBuf, tmpPool);
+		insertImageMemoryBarrier(tmpCmdBuf, textureImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+	
+		VkImageSubresourceLayers colorAspect = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.mipLevel = 0,
+			.baseArrayLayer = 0,
+			.layerCount = 1,
 		};
-		vkQueueSubmit(swapchain.queues.graphicsQueues[0], 1, &submitInfo, VK_NULL_HANDLE);
-		vkQueueWaitIdle(swapchain.queues.graphicsQueues[0]);
+		VkBufferImageCopy packedSize = {
+			.bufferOffset = 0,
+			.bufferRowLength = 0, // tightly packed buffer accordingly with imageExtent
+			.bufferImageHeight = 0, // tightly packed buffer accordingly with imageExtent
+			.imageSubresource = colorAspect,
+			.imageOffset = VkOffset3D(0, 0, 0),
+			.imageExtent = VkExtent3D(imageExtent.width, imageExtent.height, 1)
+		};
+		vkCmdCopyBufferToImage(tmpCmdBuf, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &packedSize);
 
-		vkDestroyCommandPool(swapchain.queues.backend.device, tempPool, nullptr);
+		insertImageMemoryBarrier(tmpCmdBuf, textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+
+		endSubmitFreeOneTimeCommandBuffer(tmpCmdBuf, tmpPool);
 	}
 }

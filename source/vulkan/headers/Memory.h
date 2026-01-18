@@ -57,14 +57,18 @@ namespace Vulkan {
 		VkDescriptorSetLayoutBinding descriptorSetLayoutBinding;
 
 		unsigned char* textureAddress;
+		int textureWidth;
+		int textureHeight;
 		uint32_t textureSize;
 		VkBuffer stagedTexture;
 		VkMemoryRequirements stagedTextureRequirements;
 		VkDeviceSize stagedTextureOffset;
+		VkImage textureImage;
+		VkMemoryRequirements textureImageRequirements;
+		VkDeviceSize textureImageOffset;
 
 		void setupBuffersAndMemory();
 		void setupDescriptors();
-		void setupTextures();
 
 		void createVerticesBuffer();
 		void createIndicesBuffer();
@@ -75,6 +79,7 @@ namespace Vulkan {
 		void allocateGPUMemory();
 		void allocateStagingMemory();
 		void bindUniformBuffersToStagingMemory();
+		void bindTextureImageToGpuMemory();
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
 		void populateTextureBuffer();
@@ -86,12 +91,17 @@ namespace Vulkan {
 		void uniformBuffersToDescriptors();
 
 		void loadTexture();
+		void createTextureImage();
 
+		void allocateBeginOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
+		void endSubmitFreeOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
+		void insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
 		VkDeviceSize calculateAllocationSize(std::vector<VkDeviceSize> bufferSizes, std::vector<VkDeviceSize> alignments, std::vector<VkDeviceSize>& offsetsToSet);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
 		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning);
+		void copyBufferToImage(VkBuffer& src, VkImage& dst, VkExtent2D imageExtent);
 
 	public:
 		Memory(Swapchain&& salvageSwapchain);
