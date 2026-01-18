@@ -67,8 +67,11 @@ namespace Vulkan {
 		VkMemoryRequirements textureImageRequirements;
 		VkDeviceSize textureImageOffset;
 
+		VkSampler textureSampler;
+
 		void setupBuffersAndMemory();
 		void setupDescriptors();
+		void setupSampler();
 
 		void createVerticesBuffer();
 		void createIndicesBuffer();

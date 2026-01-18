@@ -60,7 +60,9 @@ namespace Vulkan {
 	stagedTextureOffset{},
 	textureImage{},
 	textureImageRequirements{},
-	textureImageOffset{}
+	textureImageOffset{},
+
+	textureSampler{}
 	{
 		std::cout << "---CREATING MEMORY...---\n";
 		
@@ -68,6 +70,7 @@ namespace Vulkan {
 		createTextureImage();
 		setupBuffersAndMemory();
 		setupDescriptors();
+		setupSampler();
 	}
 
 	Memory::Memory(Memory&& salvageMemory) :
@@ -116,7 +119,9 @@ namespace Vulkan {
 		stagedTextureOffset{ salvageMemory.stagedTextureOffset },
 		textureImage{ salvageMemory.textureImage },
 		textureImageRequirements{ salvageMemory.textureImageRequirements },
-		textureImageOffset{ salvageMemory.textureImageOffset }
+		textureImageOffset{ salvageMemory.textureImageOffset },
+		
+		textureSampler{ salvageMemory.textureSampler }
 		{
 		salvageMemory.isSalvagedRemains = true;
 
@@ -161,6 +166,8 @@ namespace Vulkan {
 		salvageMemory.textureImage = {};
 		salvageMemory.textureImageRequirements = {};
 		salvageMemory.textureImageOffset = {};
+
+		salvageMemory.textureSampler = {};
 		
 		std::cout << "---MOVED MEMORY---\n";
 	}
@@ -170,6 +177,7 @@ namespace Vulkan {
 			std::cout << "---CLEANING MEMORY...---\n";
 
 			vkDestroyImage(swapchain.queues.backend.device, textureImage, nullptr);
+			vkDestroySampler(swapchain.queues.backend.device, textureSampler, nullptr);
 
 			vkDestroyBuffer(swapchain.queues.backend.device, verticesBuffer, nullptr);
 			vkDestroyBuffer(swapchain.queues.backend.device, indicesBuffer, nullptr);
@@ -496,6 +504,35 @@ namespace Vulkan {
 
 		if(textureAddress == nullptr) {
 			throw std::runtime_error("Texture loading failure");
+		}
+	}
+
+	void Memory::setupSampler() {
+		VkSamplerCreateInfo textureSamplerInfo = {
+			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.magFilter = VK_FILTER_LINEAR,
+			.minFilter = VK_FILTER_LINEAR,
+			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+			.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.mipLodBias = 1.0f,
+			.anisotropyEnable = true,
+			.maxAnisotropy = 10.0f,
+			.compareEnable = false,
+			.compareOp = VK_COMPARE_OP_ALWAYS,
+			.minLod = 0.0f,
+			.maxLod = 1.0f,
+			.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+			.unnormalizedCoordinates = false,
+		};
+
+		if(vkCreateSampler(swapchain.queues.backend.device, &textureSamplerInfo, nullptr, &textureSampler) == VK_SUCCESS) {
+			std::cout << "Texture sampler created\n";
+		} else {
+			throw std::runtime_error("Texture sampler creation failure");
 		}
 	}
 
