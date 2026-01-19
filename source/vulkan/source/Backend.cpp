@@ -361,7 +361,7 @@ namespace Vulkan {
 		
 		vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeaturesStatus);
 
-		bool requiredFeaturesSupported = deviceSyncFeaturesStatus.synchronization2 && deviceDynamicRenderingFeaturesStatus.dynamicRendering && deviceExtendedDynamicStateFeaturesStatus.extendedDynamicState2;
+		bool requiredFeaturesSupported = deviceFeaturesStatus.features.samplerAnisotropy && deviceSyncFeaturesStatus.synchronization2 && deviceDynamicRenderingFeaturesStatus.dynamicRendering && deviceExtendedDynamicStateFeaturesStatus.extendedDynamicState2;
 		
 		return requiredFeaturesSupported;
 	}
@@ -381,6 +381,7 @@ namespace Vulkan {
 		deviceFeaturesStatus.pNext = &deviceSyncFeaturesStatus;
 		deviceSyncFeaturesStatus.pNext = &deviceDynamicRenderingFeaturesStatus;
 		deviceDynamicRenderingFeaturesStatus.pNext = &deviceExtendedDynamicStateFeaturesStatus;
+		deviceFeaturesStatus.features.samplerAnisotropy = true;
 		deviceSyncFeaturesStatus.synchronization2 = true;
 		deviceDynamicRenderingFeaturesStatus.dynamicRendering = true;
 		deviceExtendedDynamicStateFeaturesStatus.extendedDynamicState2 = true;

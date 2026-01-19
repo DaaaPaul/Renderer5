@@ -73,9 +73,9 @@ namespace Vulkan {
 		
 		loadTexture();
 		createTextureImage();
-		createTextureImageView();
 		setupBuffersAndMemory();
 		setup_u_Descriptors();
+		createTextureImageView();
 		setupSampler();
 		setup_t_Descriptors();
 	}
@@ -536,7 +536,7 @@ namespace Vulkan {
 			.flags = 0,
 			.image = textureImage,
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = VK_FORMAT_R8G8B8A8_SRGB,
+			.format = swapchain.swapchainInfo.imageFormat,
 			.subresourceRange = VkImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
 		};
 
@@ -591,7 +591,7 @@ namespace Vulkan {
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			.descriptorCount = 1,
-			.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 			.pImmutableSamplers = nullptr,
 		};
 

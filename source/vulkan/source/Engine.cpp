@@ -14,6 +14,7 @@ namespace Vulkan {
 		queueIndex{ 0 },
 		flightIndex{ 0 },
 		clearColor{ 0.55f, 0.27f, 0.074f, 1.0f },
+		currentTransformation{ .model = glm::mat4(1.0f) },
 		framesLastSecond{ 0 },
 		commands(std::move(salvageCommands)) {
 		std::cout << "---CREATED ENGINE---\n";
@@ -98,15 +99,13 @@ namespace Vulkan {
 
 	void Engine::reactToInput() {
 		if (glfwGetKey(BACKEND.window, GLFW_KEY_W) == GLFW_PRESS) {
-			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			currentTransformation.model = glm::translate(currentTransformation.model, glm::vec3(0.0f, 0.001f, 0.0f));
 		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_S) == GLFW_PRESS) {
-			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+			currentTransformation.model = glm::translate(currentTransformation.model, glm::vec3(0.0f, -0.001f, 0.0f));
 		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_A) == GLFW_PRESS) {
-			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+			currentTransformation.model = glm::translate(currentTransformation.model, glm::vec3(-0.001f, 0.0f, 0.0f));
 		} else if (glfwGetKey(BACKEND.window, GLFW_KEY_D) == GLFW_PRESS) {
-			currentTransformation.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		} else {
-			currentTransformation.model = glm::mat4(1.0f);
+			currentTransformation.model = glm::translate(currentTransformation.model, glm::vec3(0.001f, 0.0f, 0.0f));
 		}
 	}
 
@@ -117,8 +116,8 @@ namespace Vulkan {
 
 		glm::mat4 updatedModelMatrix = currentTransformation.model;
 
-		currentTransformation.model = glm::rotate(updatedModelMatrix, timeSinceLoad * glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 3.0f, 0.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		//currentTransformation.model = glm::rotate(updatedModelMatrix, glm::radians(0.01f), glm::vec3(0.0f, 0.0f, 1.0f));
+		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 10.0f);
 		currentTransformation.projection[1][1] *= -1.0f;
 
