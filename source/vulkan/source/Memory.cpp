@@ -3,43 +3,29 @@
 #include <glm/glm.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
 #include <iostream>
 
 namespace Vulkan {
 	Memory::Memory(Swapchain&& salvageSwapchain) :
 	isSalvagedRemains{ false },
 	FLIGHT_COUNT{ 3 },
-	vertices{ 
-		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)), // top left
-		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(2.0f, 0.0f)), // top right
-		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(2.0f, 2.0f)), // bottom right
-		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 2.0f)), // bottom left
-
-		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, -0.5f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)), // top left
-		Geometry::Vertex(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(2.0f, 0.0f)), // top right
-		Geometry::Vertex(glm::vec4(0.5f, 0.5f, -0.5f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(2.0f, 2.0f)), // bottom right
-		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, -0.5f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 2.0f)) // bottom left
-	},
-	indices{
-		0, 1, 2,
-		0, 2, 3,
-
-		4, 5, 6,
-		4, 6, 7
-	},
+	vertices{},
+	indices{},
 	graphicsQueueFamilyIndex{ swapchain.queues.backend.graphicsFamilyIndex },
 	verticesBufferRequirements{},
 	verticesBufferOffset{},
-	verticesBufferSize{ static_cast<uint32_t>(sizeof(vertices[0]) * vertices.size()) },
+	verticesBufferSize{},
 	indicesBufferRequirements{},
 	indicesBufferOffset{},
-	indicesBufferSize{ static_cast<uint32_t>(sizeof(indices[0]) * indices.size()) },
+	indicesBufferSize{},
 	stagedVerticesRequirements{},
 	stagedVerticesOffset{},
-	stagedVerticesSize{ verticesBufferSize },
+	stagedVerticesSize{},
 	stagedIndicesRequirements{},
 	stagedIndicesOffset{},
-	stagedIndicesSize{ indicesBufferSize },
+	stagedIndicesSize{},
 
 	swapchain{ std::move(salvageSwapchain) },
 	stagingMemory{ VK_NULL_HANDLE },
@@ -83,6 +69,7 @@ namespace Vulkan {
 	depthImageOffset{} {
 		std::cout << "---CREATING MEMORY...---\n";
 		
+		setupModel();
 		setupDepthImage();
 		setupTextureImage();
 		setupBuffersAndMemory();
@@ -243,6 +230,45 @@ namespace Vulkan {
 			vkFreeMemory(swapchain.queues.backend.device, gpuMemory, nullptr);
 			vkFreeMemory(swapchain.queues.backend.device, stagingMemory, nullptr);
 		}
+	}
+
+	void Memory::setupModel() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warnings{}, errors{};
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warnings, &errors, R"(resources/models/viking_room.obj)")) {
+			throw std::runtime_error("Loading model failure: " + warnings + errors);
+		}
+
+		for (tinyobj::shape_t const& shape : shapes) {
+			for (tinyobj::index_t const& index : shape.mesh.indices) {
+				Geometry::Vertex vertex{};
+
+				vertex.position = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2],
+					1.0f
+				};
+
+				vertex.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+				vertex.textureCoordinate = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+				};
+
+				vertices.push_back(vertex);
+				indices.push_back(indices.size());
+			}
+		}
+
+		verticesBufferSize = sizeof(Geometry::Vertex) * vertices.size();
+		indicesBufferSize = sizeof(uint32_t) * indices.size();
+		stagedVerticesSize = verticesBufferSize;
+		stagedIndicesSize = indicesBufferSize;
 	}
 
 	void Memory::setupDepthImage() {
@@ -463,6 +489,10 @@ namespace Vulkan {
 			vkMapMemory(swapchain.queues.backend.device, stagingMemory, uniformBuffersOffsets[i], sizeof(Geometry::Transformation), 0, &uniformBuffersAddresses[i]);
 			vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
 		}
+
+		std::cout << uniformBuffersAddresses[0] << '\n';
+		std::cout << uniformBuffersAddresses[1] << '\n';
+		std::cout << uniformBuffersAddresses[2] << '\n';
 	}
 
 	void Memory::create_u_DescriptorSetLayout() {
@@ -546,7 +576,7 @@ namespace Vulkan {
 	}
 
 	void Memory::loadTexture() {
-		textureAddress = stbi_load(R"(resources/textures/Lumberjack Sion.jpg)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
+		textureAddress = stbi_load(R"(resources/textures/viking_room.png)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
 		textureSize = textureWidth * textureHeight * 4;
 
 		if (textureAddress == nullptr) {

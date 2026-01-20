@@ -119,8 +119,8 @@ namespace Vulkan {
 
 		glm::mat4 updatedModelMatrix = currentTransformation.model;
 
-		//currentTransformation.model = glm::rotate(updatedModelMatrix, glm::radians(0.01f), glm::vec3(0.0f, 0.0f, 1.0f));
-		currentTransformation.view = glm::lookAt(glm::vec3(1.5f, 1.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		currentTransformation.model = glm::rotate(updatedModelMatrix, glm::radians(0.01f), glm::vec3(0.0f, 0.0f, 1.0f));
+		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 2.5f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 10.0f);
 		currentTransformation.projection[1][1] *= -1.0f;
 

@@ -79,6 +79,7 @@ namespace Vulkan {
 		VkMemoryRequirements depthImageRequirements;
 		VkDeviceSize depthImageOffset;
 
+		void setupModel();
 		void setupDepthImage();
 		void setupTextureImage();
 		void setupBuffersAndMemory();

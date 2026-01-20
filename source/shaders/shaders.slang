@@ -36,8 +36,5 @@ VertexOut vertexShader(VertexIn given) {
 
 [shader("fragment")]
 float4 fragmentShader(VertexOut processed) {
-    float4 sampledColor = textureSampler.Sample(processed.texCoord);
-    float4 givenColor = processed.col;
-
-    return float4(sampledColor.x * givenColor.x, sampledColor.y * givenColor.y, sampledColor.z * givenColor.z, 1.0f);
+    return textureSampler.Sample(processed.texCoord);
 }
