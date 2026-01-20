@@ -74,6 +74,13 @@ namespace Vulkan {
 		std::vector<VkDescriptorSet> t_descriptorSets;
 		VkDescriptorSetLayoutBinding t_descriptorSetLayoutBinding;
 
+		VkImage depthImage;
+		VkImageView depthImageView;
+		VkMemoryRequirements depthImageRequirements;
+		VkDeviceSize depthImageOffset;
+
+		void setupDepthImage();
+		void setupTextureImage();
 		void setupBuffersAndMemory();
 		void setup_u_Descriptors();
 		void setupSampler();
@@ -89,6 +96,7 @@ namespace Vulkan {
 		void allocateStagingMemory();
 		void bindUniformBuffersToStagingMemory();
 		void bindTextureImageToGpuMemory();
+		void bindDepthImageToGpuMemory();
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
 		void populateTextureBuffer();
@@ -108,6 +116,9 @@ namespace Vulkan {
 		void create_t_DescriptorSets();
 		void samplerToDescriptors();
 
+		void createDepthImage();
+		void createDepthImageView();
+
 		void allocateBeginOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
 		void endSubmitFreeOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
 		void insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
@@ -117,6 +128,8 @@ namespace Vulkan {
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
 		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning);
 		void copyBufferToImage(VkBuffer& src, VkImage& dst, VkExtent2D imageExtent);
+		void createImage(VkImage& image, VkFormat format, VkExtent3D extent, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage);
+		void createImageView(VkImageView& imageView, VkImage image, VkFormat format, VkImageAspectFlags aspect);
 
 	public:
 		Memory(Swapchain&& salvageSwapchain);

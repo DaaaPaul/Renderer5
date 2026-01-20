@@ -143,7 +143,7 @@ namespace Vulkan {
 			.viewMask = 0,
 			.colorAttachmentCount = 1,
 			.pColorAttachmentFormats = &colorAttachmentFormat,
-			.depthAttachmentFormat = VK_FORMAT_UNDEFINED,
+			.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
 			.stencilAttachmentFormat = VK_FORMAT_UNDEFINED
 		};
 
@@ -284,9 +284,9 @@ namespace Vulkan {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
-			.depthTestEnable = VK_FALSE,
-			.depthWriteEnable = VK_FALSE,
-			.depthCompareOp = VK_COMPARE_OP_NEVER,
+			.depthTestEnable = VK_TRUE,
+			.depthWriteEnable = VK_TRUE,
+			.depthCompareOp = VK_COMPARE_OP_LESS,
 			.depthBoundsTestEnable = VK_FALSE,
 			.stencilTestEnable = VK_FALSE,
 			.front = {},

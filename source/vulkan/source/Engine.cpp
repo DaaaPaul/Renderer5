@@ -1,3 +1,5 @@
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
 #include "../headers/Engine.h"
 #include "../../geometry/headers/Transformation.h"
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,8 +15,9 @@ namespace Vulkan {
 		FLIGHT_COUNT{ salvageCommands.FLIGHT_COUNT },
 		queueIndex{ 0 },
 		flightIndex{ 0 },
-		clearColor{ 0.55f, 0.27f, 0.074f, 1.0f },
-		currentTransformation{ .model = glm::mat4(1.0f) },
+		clearColor{ .color = { 0.55f, 0.27f, 0.074f, 1.0f } },
+		clearDepth{ .depthStencil = VkClearDepthStencilValue(1.0f, 0) },
+		currentTransformation{ .model = glm::mat4(1.0f), .view = glm::mat4(1.0f), .projection = glm::mat4(1.0f) },
 		framesLastSecond{ 0 },
 		commands(std::move(salvageCommands)) {
 		std::cout << "---CREATED ENGINE---\n";
@@ -117,7 +120,7 @@ namespace Vulkan {
 		glm::mat4 updatedModelMatrix = currentTransformation.model;
 
 		//currentTransformation.model = glm::rotate(updatedModelMatrix, glm::radians(0.01f), glm::vec3(0.0f, 0.0f, 1.0f));
-		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		currentTransformation.view = glm::lookAt(glm::vec3(1.5f, 1.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 10.0f);
 		currentTransformation.projection[1][1] *= -1.0f;
 
@@ -144,7 +147,17 @@ namespace Vulkan {
 			VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
 			VK_ACCESS_2_NONE,
 			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_IMAGE_ASPECT_COLOR_BIT);
+
+		insertImageMemoryBarrier(commands.sync.pipeline.memory.depthImage,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+			VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+			VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+			VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		VkRenderingAttachmentInfo colorAttachmentInfo = {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -157,6 +170,19 @@ namespace Vulkan {
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.clearValue = clearColor
+		};
+
+		VkRenderingAttachmentInfo depthAttachmentInfo = {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = nullptr,
+			.imageView = commands.sync.pipeline.memory.depthImageView,
+			.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+			.resolveMode = VK_RESOLVE_MODE_NONE,
+			.resolveImageView = VK_NULL_HANDLE,
+			.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.clearValue = clearDepth
 		};
 
 		VkRect2D scissor = {
@@ -173,7 +199,7 @@ namespace Vulkan {
 			.viewMask = 0,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &colorAttachmentInfo,
-			.pDepthAttachment = nullptr,
+			.pDepthAttachment = &depthAttachmentInfo,
 			.pStencilAttachment = nullptr,
 		};
 
@@ -210,16 +236,17 @@ namespace Vulkan {
 			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
 			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 			VK_PIPELINE_STAGE_2_NONE,
-			VK_ACCESS_2_NONE);
+			VK_ACCESS_2_NONE,
+			VK_IMAGE_ASPECT_COLOR_BIT);
 
 		if (vkEndCommandBuffer(targetCommandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Command buffer end recording failure");
 		}
 	}
 
-	void Engine::insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess) {
+	void Engine::insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess, VkImageAspectFlags aspect) {
 		VkImageSubresourceRange memoryBarrierResourceRange = {
-			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.aspectMask = aspect,
 			.baseMipLevel = 0,
 			.levelCount = 1,
 			.baseArrayLayer = 0,

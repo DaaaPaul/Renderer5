@@ -10,14 +10,22 @@ namespace Vulkan {
 	isSalvagedRemains{ false },
 	FLIGHT_COUNT{ 3 },
 	vertices{ 
-		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)),
-		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f)),
-		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f)),
-		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 1.0f))
+		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)), // top left
+		Geometry::Vertex(glm::vec4(0.5f, -0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(2.0f, 0.0f)), // top right
+		Geometry::Vertex(glm::vec4(0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(2.0f, 2.0f)), // bottom right
+		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 2.0f)), // bottom left
+
+		Geometry::Vertex(glm::vec4(-0.5f, -0.5f, -0.5f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f)), // top left
+		Geometry::Vertex(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec2(2.0f, 0.0f)), // top right
+		Geometry::Vertex(glm::vec4(0.5f, 0.5f, -0.5f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec2(2.0f, 2.0f)), // bottom right
+		Geometry::Vertex(glm::vec4(-0.5f, 0.5f, -0.5f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 2.0f)) // bottom left
 	},
 	indices{
 		0, 1, 2,
-		0, 2, 3
+		0, 2, 3,
+
+		4, 5, 6,
+		4, 6, 7
 	},
 	graphicsQueueFamilyIndex{ swapchain.queues.backend.graphicsFamilyIndex },
 	verticesBufferRequirements{},
@@ -67,14 +75,19 @@ namespace Vulkan {
 	t_descriptorSetLayout{},
 	t_descriptorPool{},
 	t_descriptorSets(swapchain.queues.graphicsQueues.size() * FLIGHT_COUNT),
-	t_descriptorSetLayoutBinding{}
-	{
+	t_descriptorSetLayoutBinding{},
+
+	depthImage{},
+	depthImageView{},
+	depthImageRequirements{},
+	depthImageOffset{} {
 		std::cout << "---CREATING MEMORY...---\n";
 		
-		loadTexture();
-		createTextureImage();
+		setupDepthImage();
+		setupTextureImage();
 		setupBuffersAndMemory();
 		setup_u_Descriptors();
+		createDepthImageView();
 		createTextureImageView();
 		setupSampler();
 		setup_t_Descriptors();
@@ -133,7 +146,12 @@ namespace Vulkan {
 		t_descriptorSetLayout{ salvageMemory.t_descriptorSetLayout },
 		t_descriptorPool{ salvageMemory.t_descriptorPool },
 		t_descriptorSets{ salvageMemory.t_descriptorSets },
-		t_descriptorSetLayoutBinding{ salvageMemory.t_descriptorSetLayoutBinding }
+		t_descriptorSetLayoutBinding{ salvageMemory.t_descriptorSetLayoutBinding },
+
+		depthImage{ salvageMemory.depthImage },
+		depthImageView{ salvageMemory.depthImageView },
+		depthImageRequirements{ salvageMemory.depthImageRequirements },
+		depthImageOffset{ salvageMemory.depthImageOffset }
 		{
 		salvageMemory.isSalvagedRemains = true;
 
@@ -185,6 +203,11 @@ namespace Vulkan {
 		salvageMemory.t_descriptorPool = {};
 		salvageMemory.t_descriptorSets = {};
 		salvageMemory.t_descriptorSetLayoutBinding = {};
+
+		salvageMemory.depthImage = {};
+		salvageMemory.depthImageView = {};
+		salvageMemory.depthImageRequirements = {};
+		salvageMemory.depthImageOffset = {};
 		
 		std::cout << "---MOVED MEMORY---\n";
 	}
@@ -193,6 +216,8 @@ namespace Vulkan {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING MEMORY...---\n";
 
+			vkDestroyImageView(swapchain.queues.backend.device, depthImageView, nullptr);
+			vkDestroyImage(swapchain.queues.backend.device, depthImage, nullptr);
 			vkDestroyImageView(swapchain.queues.backend.device, textureImageView, nullptr);
 			vkDestroyImage(swapchain.queues.backend.device, textureImage, nullptr);
 			vkDestroySampler(swapchain.queues.backend.device, textureSampler, nullptr);
@@ -220,6 +245,15 @@ namespace Vulkan {
 		}
 	}
 
+	void Memory::setupDepthImage() {
+		createDepthImage();
+	}
+
+	void Memory::setupTextureImage() {
+		loadTexture();
+		createTextureImage();
+	}
+
 	void Memory::setupBuffersAndMemory() {
 		createVerticesBuffer();
 		createIndicesBuffer();
@@ -231,6 +265,7 @@ namespace Vulkan {
 		allocateStagingMemory();
 		bindUniformBuffersToStagingMemory();
 		bindTextureImageToGpuMemory();
+		bindDepthImageToGpuMemory();
 		populateVerticesBuffer();
 		populateIndicesBuffer();
 		populateTextureBuffer();
@@ -291,9 +326,19 @@ namespace Vulkan {
 	}
 
 	void Memory::allocateGPUMemory() {
-		std::vector<VkDeviceSize> gpuBufferSizeRequirements{ verticesBufferRequirements.size, indicesBufferRequirements.size, textureImageRequirements.size };
+		std::vector<VkDeviceSize> gpuBufferSizeRequirements{ 
+			verticesBufferRequirements.size, 
+			indicesBufferRequirements.size, 
+			textureImageRequirements.size,
+			depthImageRequirements.size
+		};
 
-		std::vector<VkDeviceSize> gpuBufferAlignments{ verticesBufferRequirements.alignment, indicesBufferRequirements.alignment, textureImageRequirements.alignment };
+		std::vector<VkDeviceSize> gpuBufferAlignments{ 
+			verticesBufferRequirements.alignment, 
+			indicesBufferRequirements.alignment, 
+			textureImageRequirements.alignment,
+			depthImageRequirements.alignment
+		};
 
 		std::vector<VkDeviceSize> offsets(gpuBufferAlignments.size());
 
@@ -301,8 +346,13 @@ namespace Vulkan {
 		verticesBufferOffset = offsets[0];
 		indicesBufferOffset = offsets[1];
 		textureImageOffset = offsets[2];
+		depthImageOffset = offsets[3];
 		
-		uint32_t validMemoryTypes = verticesBufferRequirements.memoryTypeBits & indicesBufferRequirements.memoryTypeBits & textureImageRequirements.memoryTypeBits;
+		uint32_t validMemoryTypes = 
+			verticesBufferRequirements.memoryTypeBits & 
+			indicesBufferRequirements.memoryTypeBits & 
+			textureImageRequirements.memoryTypeBits &
+			depthImageRequirements.memoryTypeBits;
 		VkMemoryPropertyFlags neededMemoryType = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		uint32_t memoryTypeIndex = getMemoryTypeIndex(validMemoryTypes, neededMemoryType);
 		allocateMemory(gpuMemory, allocationSize, memoryTypeIndex);
@@ -351,6 +401,10 @@ namespace Vulkan {
 
 	void Memory::bindTextureImageToGpuMemory() {
 		vkBindImageMemory(swapchain.queues.backend.device, textureImage, gpuMemory, textureImageOffset);
+	}
+
+	void Memory::bindDepthImageToGpuMemory() {
+		vkBindImageMemory(swapchain.queues.backend.device, depthImage, gpuMemory, depthImageOffset);
 	}
 
 	void Memory::populateVerticesBuffer() {
@@ -501,50 +555,12 @@ namespace Vulkan {
 	}
 
 	void Memory::createTextureImage() {
-		VkImageCreateInfo imageInfo = { 
-			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0,
-			.imageType = VK_IMAGE_TYPE_2D, 
-			.format = swapchain.swapchainInfo.imageFormat,
-			.extent = VkExtent3D(textureWidth, textureHeight, 1),
-			.mipLevels = 1, 
-			.arrayLayers = 1, 
-			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.tiling = VK_IMAGE_TILING_OPTIMAL, 
-			.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &graphicsQueueFamilyIndex,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		};
-
-		if(vkCreateImage(swapchain.queues.backend.device, &imageInfo, nullptr, &textureImage) == VK_SUCCESS) {
-			std::cout << "Created " << textureWidth << "x" << textureHeight << "x1"
-				" texture with format " << swapchain.swapchainInfo.imageFormat << " and initial layout undefined\n";
-
-			vkGetImageMemoryRequirements(swapchain.queues.backend.device, textureImage, &textureImageRequirements);
-		} else {
-			throw std::runtime_error("Texture image creation failure");
-		}
+		createImage(textureImage, swapchain.swapchainInfo.imageFormat, VkExtent3D(textureWidth, textureHeight, 1), VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+		vkGetImageMemoryRequirements(swapchain.queues.backend.device, textureImage, &textureImageRequirements);
 	}
 
 	void Memory::createTextureImageView() {
-		VkImageViewCreateInfo viewInfo = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0,
-			.image = textureImage,
-			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = swapchain.swapchainInfo.imageFormat,
-			.subresourceRange = VkImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
-		};
-
-		if (vkCreateImageView(swapchain.queues.backend.device, &viewInfo, nullptr, &textureImageView) == VK_SUCCESS) {
-			std::cout << "Created texture image view\n";
-		} else {
-			throw std::runtime_error("Texture image view creation failure");
-		}
+		createImageView(textureImageView, textureImage, swapchain.swapchainInfo.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
 	void Memory::setupSampler() {
@@ -669,6 +685,15 @@ namespace Vulkan {
 
 			vkUpdateDescriptorSets(swapchain.queues.backend.device, 1, &writeInfo, 0, nullptr);
 		}
+	}
+
+	void Memory::createDepthImage() {
+		createImage(depthImage, VK_FORMAT_D32_SFLOAT, VkExtent3D(swapchain.swapchainInfo.imageExtent.width, swapchain.swapchainInfo.imageExtent.height, 1), VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+		vkGetImageMemoryRequirements(swapchain.queues.backend.device, depthImage, &depthImageRequirements);
+	}
+
+	void Memory::createDepthImageView() {
+		createImageView(depthImageView, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
 	}
 
 	void Memory::insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess) {
@@ -871,5 +896,45 @@ namespace Vulkan {
 		insertImageMemoryBarrier(tmpCmdBuf, textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
 
 		endSubmitFreeOneTimeCommandBuffer(tmpCmdBuf, tmpPool);
+	}
+
+	void Memory::createImage(VkImage& image, VkFormat format, VkExtent3D extent, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage) {
+		VkImageCreateInfo imageInfo = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.imageType = VK_IMAGE_TYPE_2D,
+			.format = format,
+			.extent = extent,
+			.mipLevels = 1,
+			.arrayLayers = 1,
+			.samples = samples,
+			.tiling = tiling,
+			.usage = usage,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.queueFamilyIndexCount = 1,
+			.pQueueFamilyIndices = &graphicsQueueFamilyIndex,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
+
+		if (vkCreateImage(swapchain.queues.backend.device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
+			throw std::runtime_error("Image creation failure");
+		}
+	}
+
+	void Memory::createImageView(VkImageView& imageView, VkImage image, VkFormat format, VkImageAspectFlags aspect) {
+		VkImageViewCreateInfo viewInfo = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.image = image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = format,
+			.subresourceRange = VkImageSubresourceRange(aspect, 0, 1, 0, 1)
+		};
+
+		if (vkCreateImageView(swapchain.queues.backend.device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+			throw std::runtime_error("Texture image view creation failure");
+		}
 	}
 }

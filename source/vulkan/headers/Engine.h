@@ -12,7 +12,8 @@ namespace Vulkan {
 		const uint16_t FLIGHT_COUNT;
 		uint16_t queueIndex;
 		uint16_t flightIndex;
-		VkClearColorValue clearColor;
+		VkClearValue clearColor;
+		VkClearValue clearDepth;
 		Geometry::Transformation currentTransformation;
 
 		uint16_t framesLastSecond;
@@ -25,7 +26,7 @@ namespace Vulkan {
 		void reactToInput();
 		void writeUniformBuffer();
 		void record(VkImage& image, VkImageView& colorAttachmentImageView);
-		void insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
+		void insertImageMemoryBarrier(VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess, VkImageAspectFlags aspect);
 		uint16_t convertDoubleToSingleIndex(uint16_t queueIndex, uint16_t flightIndex);
 	public:
 		void run();
