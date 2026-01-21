@@ -233,42 +233,43 @@ namespace Vulkan {
 	}
 
 	void Memory::setupModel() {
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string warnings{}, errors{};
+		tinyobj::attrib_t vertexAttributes{};
+		std::vector<tinyobj::shape_t> meshes{};
+		std::string warnings{}, errors{}, path{ "resources/models/Skull.obj" };
 
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warnings, &errors, R"(resources/models/viking_room.obj)")) {
-			throw std::runtime_error("Loading model failure: " + warnings + errors);
+		if(tinyobj::LoadObj(&vertexAttributes, &meshes, nullptr, &warnings, &errors, path.c_str())) {
+			std::cout << "Sucessfully loaded .obj model at " << path << '\n';;
+		} else {
+			throw std::runtime_error("Load model at " + path + " failure");
 		}
 
-		for (tinyobj::shape_t const& shape : shapes) {
-			for (tinyobj::index_t const& index : shape.mesh.indices) {
-				Geometry::Vertex vertex{};
+		for(tinyobj::shape_t const& mesh : meshes) {
+			for(tinyobj::index_t const& index : mesh.mesh.indices) {
+				Geometry::Vertex vertex = {
+					.position = { 
+						vertexAttributes.vertices[3 * index.vertex_index + 0],
+						vertexAttributes.vertices[3 * index.vertex_index + 1],
+						vertexAttributes.vertices[3 * index.vertex_index + 2],
+						1.0f
+					},
 
-				vertex.position = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2],
-					1.0f
+					.color = {1.0f, 1.0f, 1.0f, 1.0f},
+
+					.textureCoordinate = {
+						vertexAttributes.texcoords[2 * index.texcoord_index + 0],
+						1.0f - vertexAttributes.texcoords[2 * index.texcoord_index + 1],
+					}
 				};
 
-				vertex.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-				vertex.textureCoordinate = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
-
-				vertices.push_back(vertex);
 				indices.push_back(indices.size());
+				vertices.push_back(vertex);
 			}
 		}
 
 		verticesBufferSize = sizeof(Geometry::Vertex) * vertices.size();
 		indicesBufferSize = sizeof(uint32_t) * indices.size();
-		stagedVerticesSize = verticesBufferSize;
-		stagedIndicesSize = indicesBufferSize;
+		stagedVerticesSize = sizeof(Geometry::Vertex) * vertices.size();
+		stagedIndicesSize = sizeof(uint32_t) * indices.size();
 	}
 
 	void Memory::setupDepthImage() {
@@ -489,10 +490,6 @@ namespace Vulkan {
 			vkMapMemory(swapchain.queues.backend.device, stagingMemory, uniformBuffersOffsets[i], sizeof(Geometry::Transformation), 0, &uniformBuffersAddresses[i]);
 			vkUnmapMemory(swapchain.queues.backend.device, stagingMemory);
 		}
-
-		std::cout << uniformBuffersAddresses[0] << '\n';
-		std::cout << uniformBuffersAddresses[1] << '\n';
-		std::cout << uniformBuffersAddresses[2] << '\n';
 	}
 
 	void Memory::create_u_DescriptorSetLayout() {
@@ -576,7 +573,7 @@ namespace Vulkan {
 	}
 
 	void Memory::loadTexture() {
-		textureAddress = stbi_load(R"(resources/textures/viking_room.png)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
+		textureAddress = stbi_load(R"(resources/textures/Skull.jpg)", &textureWidth, &textureHeight, nullptr, STBI_rgb_alpha);
 		textureSize = textureWidth * textureHeight * 4;
 
 		if (textureAddress == nullptr) {
