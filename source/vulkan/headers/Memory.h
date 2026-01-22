@@ -60,6 +60,7 @@ namespace Vulkan {
 		int textureWidth;
 		int textureHeight;
 		uint32_t textureSize;
+		uint32_t mipmapLevels;
 		VkBuffer stagedTexture;
 		VkMemoryRequirements stagedTextureRequirements;
 		VkDeviceSize stagedTextureOffset;
@@ -100,7 +101,7 @@ namespace Vulkan {
 		void bindDepthImageToGpuMemory();
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
-		void populateTextureBuffer();
+		void populateTextureImage();
 
 		void mapUniformBuffers();
 		void create_u_DescriptorSetLayout();
@@ -120,17 +121,18 @@ namespace Vulkan {
 		void createDepthImage();
 		void createDepthImageView();
 
+		void generateImageMipmaps(VkImage& image);
+		void insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
 		void allocateBeginOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
 		void endSubmitFreeOneTimeCommandBuffer(VkCommandBuffer& cmdBuf, VkCommandPool& pool);
-		void insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);
 		uint32_t getMemoryTypeIndex(uint32_t memoryRequirementsMask, VkMemoryPropertyFlags propertyMask);
 		void allocateMemory(VkDeviceMemory& memory, VkDeviceSize byteSize, uint32_t memoryTypeIndex);
 		VkDeviceSize calculateAllocationSize(std::vector<VkDeviceSize> bufferSizes, std::vector<VkDeviceSize> alignments, std::vector<VkDeviceSize>& offsetsToSet);
 		void createBuffer(VkBuffer& buffer, VkDeviceSize byteSize, VkBufferUsageFlags usage);
 		void copyBuffer(VkBuffer& src, VkBuffer& dst, VkDeviceSize sizeFromBeginning);
-		void copyBufferToImage(VkBuffer& src, VkImage& dst, VkExtent2D imageExtent);
-		void createImage(VkImage& image, VkFormat format, VkExtent3D extent, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage);
-		void createImageView(VkImageView& imageView, VkImage image, VkFormat format, VkImageAspectFlags aspect);
+		void copyBufferToImage(VkBuffer& src, VkImage& dst, VkExtent2D imageExtent, uint32_t mipLevel);
+		void createImage(VkImage& image, VkFormat format, VkExtent3D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage);
+		void createImageView(VkImageView& imageView, VkImage image, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels);
 
 	public:
 		Memory(Swapchain&& salvageSwapchain);

@@ -125,9 +125,8 @@ namespace Vulkan {
 
 		glm::mat4 updatedModelMatrix = currentTransformation.model;
 
-		//currentTransformation.model = glm::rotate(updatedModelMatrix, glm::radians(0.01f), glm::vec3(0.0f, 0.0f, 1.0f));
 		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 50.0f, 17.0f), glm::vec3(0.0f, 0.0f, 15.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 100.0f);
+		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 1000.0f);
 		currentTransformation.projection[1][1] *= -1.0f;
 
 		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[convertDoubleToSingleIndex(queueIndex, flightIndex)], &currentTransformation, sizeof(Geometry::Transformation));
