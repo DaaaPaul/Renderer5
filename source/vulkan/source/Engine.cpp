@@ -126,13 +126,14 @@ namespace Vulkan {
 		glm::mat4 updatedModelMatrix = currentTransformation.model;
 
 		currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 50.0f, 17.0f), glm::vec3(0.0f, 0.0f, 15.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		//currentTransformation.view = glm::lookAt(glm::vec3(0.0f, 3.5f, 3.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		currentTransformation.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.width) / static_cast<float>(commands.sync.pipeline.memory.swapchain.swapchainInfo.imageExtent.height), 0.1f, 1000.0f);
 		currentTransformation.projection[1][1] *= -1.0f;
 
 		memcpy(commands.sync.pipeline.memory.uniformBuffersAddresses[convertDoubleToSingleIndex(queueIndex, flightIndex)], &currentTransformation, sizeof(Geometry::Transformation));
 	}
 
-	void Engine::record(VkImage& image, VkImageView& colorAttachmentImageView) {
+	void Engine::record(VkImage& image, VkImageView& imageView) {
 		VkCommandBuffer& targetCommandBuffer = commands.commandBuffers[queueIndex][flightIndex];
 
 		VkCommandBufferBeginInfo beginInfo = {
@@ -145,6 +146,15 @@ namespace Vulkan {
 		if(vkBeginCommandBuffer(targetCommandBuffer, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Command buffer begin recording failure");
 		}
+
+		insertImageMemoryBarrier(commands.sync.pipeline.memory.multisampleImage,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+			VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_IMAGE_ASPECT_COLOR_BIT);
 
 		insertImageMemoryBarrier(image,
 			VK_IMAGE_LAYOUT_UNDEFINED,
@@ -167,11 +177,11 @@ namespace Vulkan {
 		VkRenderingAttachmentInfo colorAttachmentInfo = {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
 			.pNext = nullptr,
-			.imageView = colorAttachmentImageView,
+			.imageView = commands.sync.pipeline.memory.multisampleImageView,
 			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			.resolveMode = VK_RESOLVE_MODE_NONE,
-			.resolveImageView = VK_NULL_HANDLE,
-			.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
+			.resolveImageView = imageView,
+			.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.clearValue = clearColor

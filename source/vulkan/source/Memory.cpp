@@ -67,14 +67,21 @@ namespace Vulkan {
 	depthImage{},
 	depthImageView{},
 	depthImageRequirements{},
-	depthImageOffset{} {
+	depthImageOffset{},
+
+	multisampleImage{},
+	multisampleImageView{},
+	multisampleImageRequirements{},
+	multisampleImageOffset{} {
 		std::cout << "---CREATING MEMORY...---\n";
 		
 		setupModel();
+		setupMultisampleImage();
 		setupDepthImage();
 		setupTextureImage();
 		setupBuffersAndMemory();
 		setup_u_Descriptors();
+		createMultisampleImageView();
 		createDepthImageView();
 		createTextureImageView();
 		setupSampler();
@@ -140,8 +147,12 @@ namespace Vulkan {
 		depthImage{ salvageMemory.depthImage },
 		depthImageView{ salvageMemory.depthImageView },
 		depthImageRequirements{ salvageMemory.depthImageRequirements },
-		depthImageOffset{ salvageMemory.depthImageOffset }
-		{
+		depthImageOffset{ salvageMemory.depthImageOffset },
+
+		multisampleImage{ salvageMemory.multisampleImage },
+		multisampleImageView{ salvageMemory.multisampleImageView },
+		multisampleImageRequirements{ salvageMemory.multisampleImageRequirements },
+		multisampleImageOffset{ salvageMemory.multisampleImageOffset } {
 		salvageMemory.isSalvagedRemains = true;
 
 		salvageMemory.graphicsQueueFamilyIndex = 0xFFFFFFFF;
@@ -198,7 +209,12 @@ namespace Vulkan {
 		salvageMemory.depthImageView = {};
 		salvageMemory.depthImageRequirements = {};
 		salvageMemory.depthImageOffset = {};
-		
+
+		salvageMemory.multisampleImage = {};
+		salvageMemory.multisampleImageView = {};
+		salvageMemory.multisampleImageRequirements = {};
+		salvageMemory.multisampleImageOffset = {};
+
 		std::cout << "---MOVED MEMORY---\n";
 	}
 
@@ -206,6 +222,8 @@ namespace Vulkan {
 		if(!isSalvagedRemains) {
 			std::cout << "---CLEANING MEMORY...---\n";
 
+			vkDestroyImageView(swapchain.queues.backend.device, multisampleImageView, nullptr);
+			vkDestroyImage(swapchain.queues.backend.device, multisampleImage, nullptr);
 			vkDestroyImageView(swapchain.queues.backend.device, depthImageView, nullptr);
 			vkDestroyImage(swapchain.queues.backend.device, depthImage, nullptr);
 			vkDestroyImageView(swapchain.queues.backend.device, textureImageView, nullptr);
@@ -275,6 +293,10 @@ namespace Vulkan {
 		stagedIndicesSize = sizeof(uint32_t) * indices.size();
 	}
 
+	void Memory::setupMultisampleImage() {
+		createMultisampleImage();
+	}
+
 	void Memory::setupDepthImage() {
 		createDepthImage();
 	}
@@ -296,6 +318,7 @@ namespace Vulkan {
 		bindUniformBuffersToStagingMemory();
 		bindTextureImageToGpuMemory();
 		bindDepthImageToGpuMemory();
+		bindMultisampleImageToGpuMemory();
 		populateVerticesBuffer();
 		populateIndicesBuffer();
 		populateTextureImage();
@@ -360,14 +383,16 @@ namespace Vulkan {
 			verticesBufferRequirements.size, 
 			indicesBufferRequirements.size, 
 			textureImageRequirements.size,
-			depthImageRequirements.size
+			depthImageRequirements.size,
+			multisampleImageRequirements.size
 		};
 
 		std::vector<VkDeviceSize> gpuBufferAlignments{ 
 			verticesBufferRequirements.alignment, 
 			indicesBufferRequirements.alignment, 
 			textureImageRequirements.alignment,
-			depthImageRequirements.alignment
+			depthImageRequirements.alignment,
+			multisampleImageRequirements.alignment
 		};
 
 		std::vector<VkDeviceSize> offsets(gpuBufferAlignments.size());
@@ -377,12 +402,14 @@ namespace Vulkan {
 		indicesBufferOffset = offsets[1];
 		textureImageOffset = offsets[2];
 		depthImageOffset = offsets[3];
+		multisampleImageOffset = offsets[4];
 		
 		uint32_t validMemoryTypes = 
 			verticesBufferRequirements.memoryTypeBits & 
 			indicesBufferRequirements.memoryTypeBits & 
 			textureImageRequirements.memoryTypeBits &
-			depthImageRequirements.memoryTypeBits;
+			depthImageRequirements.memoryTypeBits &
+			multisampleImageRequirements.memoryTypeBits;
 		VkMemoryPropertyFlags neededMemoryType = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		uint32_t memoryTypeIndex = getMemoryTypeIndex(validMemoryTypes, neededMemoryType);
 		allocateMemory(gpuMemory, allocationSize, memoryTypeIndex);
@@ -435,6 +462,10 @@ namespace Vulkan {
 
 	void Memory::bindDepthImageToGpuMemory() {
 		vkBindImageMemory(swapchain.queues.backend.device, depthImage, gpuMemory, depthImageOffset);
+	}
+
+	void Memory::bindMultisampleImageToGpuMemory() {
+		vkBindImageMemory(swapchain.queues.backend.device, multisampleImage, gpuMemory, multisampleImageOffset);
 	}
 
 	void Memory::populateVerticesBuffer() {
@@ -719,12 +750,21 @@ namespace Vulkan {
 	}
 
 	void Memory::createDepthImage() {
-		createImage(depthImage, VK_FORMAT_D32_SFLOAT, VkExtent3D(swapchain.swapchainInfo.imageExtent.width, swapchain.swapchainInfo.imageExtent.height, 1), 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+		createImage(depthImage, VK_FORMAT_D32_SFLOAT, VkExtent3D(swapchain.swapchainInfo.imageExtent.width, swapchain.swapchainInfo.imageExtent.height, 1), 1, swapchain.queues.backend.multisampleCount, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 		vkGetImageMemoryRequirements(swapchain.queues.backend.device, depthImage, &depthImageRequirements);
 	}
 
 	void Memory::createDepthImageView() {
 		createImageView(depthImageView, depthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+	}
+
+	void Memory::createMultisampleImage() {
+		createImage(multisampleImage, swapchain.swapchainInfo.imageFormat, VkExtent3D(swapchain.swapchainInfo.imageExtent.width, swapchain.swapchainInfo.imageExtent.height, 1), 1, swapchain.queues.backend.multisampleCount, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT);
+		vkGetImageMemoryRequirements(swapchain.queues.backend.device, multisampleImage, &multisampleImageRequirements);
+	}
+
+	void Memory::createMultisampleImageView() {
+		createImageView(multisampleImageView, multisampleImage, swapchain.swapchainInfo.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 	}
 
 	void Memory::generateImageMipmaps(VkImage& image) {

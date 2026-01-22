@@ -80,7 +80,13 @@ namespace Vulkan {
 		VkMemoryRequirements depthImageRequirements;
 		VkDeviceSize depthImageOffset;
 
+		VkImage multisampleImage;
+		VkImageView multisampleImageView;
+		VkMemoryRequirements multisampleImageRequirements;
+		VkDeviceSize multisampleImageOffset;
+
 		void setupModel();
+		void setupMultisampleImage();
 		void setupDepthImage();
 		void setupTextureImage();
 		void setupBuffersAndMemory();
@@ -99,6 +105,7 @@ namespace Vulkan {
 		void bindUniformBuffersToStagingMemory();
 		void bindTextureImageToGpuMemory();
 		void bindDepthImageToGpuMemory();
+		void bindMultisampleImageToGpuMemory();
 		void populateVerticesBuffer();
 		void populateIndicesBuffer();
 		void populateTextureImage();
@@ -120,6 +127,9 @@ namespace Vulkan {
 
 		void createDepthImage();
 		void createDepthImageView();
+
+		void createMultisampleImage();
+		void createMultisampleImageView();
 
 		void generateImageMipmaps(VkImage& image);
 		void insertImageMemoryBarrier(VkCommandBuffer& cmdBuf, VkImage& image, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 sourceStage, VkAccessFlags2 sourceAccess, VkPipelineStageFlags2 destStage, VkAccessFlags2 destAccess);

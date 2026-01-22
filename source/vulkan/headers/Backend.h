@@ -31,6 +31,7 @@ namespace Vulkan {
 		std::vector<float> graphicsQueuePriorities;
 		uint32_t graphicsFamilyIndex;
 		std::vector<const char*> deviceExtensions;
+		VkSampleCountFlagBits multisampleCount;
 
 		// vulkan objects
 		GLFWwindow* window;
@@ -64,6 +65,8 @@ namespace Vulkan {
 		uint32_t featuresStatus(VkPhysicalDevice const& physicalDevice);
 		uint32_t getPhysicalDeviceGaugement(std::array<uint32_t, 4> const& physicalDeviceStatus);
 		uint32_t getIndexOfGreatest(std::vector<uint32_t> const& physicalDeviceRatings);
+
+		VkSampleCountFlagBits getMultiSampleCount(VkPhysicalDevice const& physicalDevice);
 	public:
 		Backend();
 		Backend(Backend&& salvageBackend);

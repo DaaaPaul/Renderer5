@@ -1,14 +1,14 @@
 #include "../headers/Backend.h"
 
 namespace Vulkan {
-	Backend::Backend() : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
+	Backend::Backend() : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, multisampleCount{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
 		std::cout << "---CREATING BACKEND...---\n";
 		
 		setupInformationParameters();
 		setupBackend();
 	}
 
-	Backend::Backend(Backend&& salvageBackend) : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
+	Backend::Backend(Backend&& salvageBackend) : isSalvagedRemains{}, validationLayersEnabled{}, validationLayers{}, apiVersion{}, graphicsQueueCount{}, graphicsQueuePriorities{}, graphicsFamilyIndex{}, deviceExtensions{}, multisampleCount{}, window{}, instance{}, surface{}, physicalDevice{}, device{} {
 		std::cout << "---MOVING BACKEND...---\n";
 
 		isSalvagedRemains = false;
@@ -46,6 +46,7 @@ namespace Vulkan {
 
 		// unknown - populates later
 		graphicsFamilyIndex = {};
+		multisampleCount = {};
 	}
 
 	void Backend::takeEverything(Backend&& salvageBackend) {
@@ -56,6 +57,7 @@ namespace Vulkan {
 		graphicsQueuePriorities = salvageBackend.graphicsQueuePriorities;
 		graphicsFamilyIndex = salvageBackend.graphicsFamilyIndex;
 		deviceExtensions = salvageBackend.deviceExtensions;
+		multisampleCount = salvageBackend.multisampleCount;
 
 		window = salvageBackend.window;
 		instance = salvageBackend.instance;
@@ -74,6 +76,7 @@ namespace Vulkan {
 		graphicsQueuePriorities = {};
 		graphicsFamilyIndex = {};
 		deviceExtensions = {};
+		multisampleCount = {};
 
 		window = {};
 		instance = {};
@@ -253,6 +256,9 @@ namespace Vulkan {
 		} else {
 			throw std::runtime_error("Vulkan physical device selection failure");
 		}
+
+		multisampleCount = getMultiSampleCount(physicalDevice);
+		std::cout << "Multisample count: " << multisampleCount << '\n';
 	}
 
 	uint32_t Backend::getIndexOfGreatest(std::vector<uint32_t> const& physicalDeviceRatings) {
@@ -400,5 +406,28 @@ namespace Vulkan {
 		} else {
 			throw std::runtime_error("Logical device creation failure");
 		}
+	}
+
+	VkSampleCountFlagBits Backend::getMultiSampleCount(VkPhysicalDevice const& physicalDevice) {
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+		VkSampleCountFlags maxSamplesPerPixel = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+
+		if(maxSamplesPerPixel & VK_SAMPLE_COUNT_64_BIT) {
+			return VK_SAMPLE_COUNT_64_BIT;
+		} else if(maxSamplesPerPixel & VK_SAMPLE_COUNT_32_BIT) {
+			return VK_SAMPLE_COUNT_32_BIT;
+		} else if (maxSamplesPerPixel & VK_SAMPLE_COUNT_16_BIT) {
+			return VK_SAMPLE_COUNT_16_BIT;
+		} else if (maxSamplesPerPixel & VK_SAMPLE_COUNT_8_BIT) {
+			return VK_SAMPLE_COUNT_8_BIT;
+		} else if (maxSamplesPerPixel & VK_SAMPLE_COUNT_4_BIT) {
+			return VK_SAMPLE_COUNT_4_BIT;
+		} else if (maxSamplesPerPixel & VK_SAMPLE_COUNT_2_BIT) {
+			return VK_SAMPLE_COUNT_2_BIT;
+		}
+
+		return VK_SAMPLE_COUNT_1_BIT;
 	}
 }
