@@ -1,4 +1,6 @@
-EASY:
+TODO:
 	- add preference for discrete GPU in Vulkan::Backend
-	- mop up the messes
 	- resize swapchain
+
+TO LOOK INTO:
+	- texture sampling
